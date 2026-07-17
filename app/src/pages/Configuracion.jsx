@@ -8,21 +8,42 @@ import ConfirmModal from '../components/ConfirmModal'
 
 // --- Parámetros generales (valores sueltos, no listas) -----------------
 const PARAMS = [
-  { clave: 'nombre_empresa', label: 'Nombre empresa' },
   { clave: 'mail_remitente', label: 'Mail remitente' },
   { clave: 'whatsapp_admin', label: 'WhatsApp admin (con código país)' },
 ]
 
-function ParametrosGenerales({ empresaId, valores, onChange }) {
+function ParametrosGenerales({ empresaId, valores, onChange, razonSocialActual }) {
+  const [errorNombre, setErrorNombre] = useState('')
+
   async function guardar(clave, valor) {
     await supabase.from('configuracion').upsert({ empresa_id: empresaId, seccion: 'parametros', clave, valor })
     onChange()
+  }
+
+  async function guardarNombreEmpresa(valor) {
+    setErrorNombre('')
+    const { data, error } = await supabase.rpc('actualizar_nombre_empresa', { p_razon_social: valor })
+    if (error) { setErrorNombre(error.message); return }
+    if (!data?.ok) { setErrorNombre(data.msg); return }
+    // El nombre de la empresa se muestra en el Sidebar a partir de los
+    // datos del usuario cargados una sola vez al iniciar sesión — la
+    // forma más simple de reflejarlo ahí es recargar.
+    window.location.reload()
   }
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
       <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Parámetros Generales</h2>
       <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Nombre empresa</label>
+          <input
+            defaultValue={razonSocialActual || ''}
+            onBlur={e => e.target.value.trim() && e.target.value.trim() !== razonSocialActual && guardarNombreEmpresa(e.target.value.trim())}
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+          />
+          {errorNombre && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{errorNombre}</p>}
+        </div>
         {PARAMS.map(p => (
           <div key={p.clave}>
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">{p.label}</label>
@@ -516,7 +537,7 @@ export default function Configuracion({ usuario }) {
       <div className="p-6 max-w-3xl space-y-6">
         {tab === 'General' && (
           <>
-            <ParametrosGenerales empresaId={usuario.empresa_id} valores={parametros} onChange={cargar} />
+            <ParametrosGenerales empresaId={usuario.empresa_id} valores={parametros} onChange={cargar} razonSocialActual={usuario.empresas?.razon_social} />
             <ToggleUsarSecuencias empresaId={usuario.empresa_id} activo={parametros.usar_secuencias === 'true'} onChange={cargar} />
             <TablaCodigoDescripcion titulo="Centros de Costo" seccion="centros_costo" empresaId={usuario.empresa_id} filas={porSeccion('centros_costo')} onChange={cargar} />
             <TablaCodigoDescripcion titulo="Tipos de Unidad" seccion="tipos_unidad" empresaId={usuario.empresa_id} filas={porSeccion('tipos_unidad')} onChange={cargar} />
