@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import { obtenerOpciones } from '../lib/configuracion'
 import { exportarXlsx } from '../lib/exportarXlsx'
 import MultiSelectFiltro from '../components/MultiSelectFiltro'
-import OtRapidaModal from '../components/OtRapidaModal'
 import OtModal from '../components/OtModal'
 import MotivoModal from '../components/MotivoModal'
 
@@ -78,7 +77,6 @@ export default function Ot({ usuario, abrirDetalle }) {
   const [filtroCiudad, setFiltroCiudad] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalAbierto, setModalAbierto] = useState(false)
-  const [rapidaAbierta, setRapidaAbierta] = useState(false)
   const [accionError, setAccionError] = useState('')
   const [idOtAnular, setIdOtAnular] = useState(null)
 
@@ -173,14 +171,6 @@ export default function Ot({ usuario, abrirDetalle }) {
           </button>
           {puedeGestionar && (
             <button
-              onClick={() => setRapidaAbierta(true)}
-              className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-lg transition-colors"
-            >
-              ⚡ OT Rápida
-            </button>
-          )}
-          {puedeGestionar && (
-            <button
               onClick={() => setModalAbierto(true)}
               className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors"
             >
@@ -256,16 +246,6 @@ export default function Ot({ usuario, abrirDetalle }) {
           proveedores={proveedores}
           onClose={() => setModalAbierto(false)}
           onCreada={idOt => { setModalAbierto(false); abrirDetalle(idOt) }}
-        />
-      )}
-
-      {rapidaAbierta && (
-        <OtRapidaModal
-          unidades={unidades}
-          secuencias={secuencias}
-          proveedores={proveedores}
-          onClose={() => setRapidaAbierta(false)}
-          onCreada={idOt => { setRapidaAbierta(false); abrirDetalle(idOt) }}
         />
       )}
 

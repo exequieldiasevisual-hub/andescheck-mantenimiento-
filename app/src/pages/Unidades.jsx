@@ -240,7 +240,7 @@ function CargaMasivaModal({ unidades, onClose, onSaved }) {
           </label>
         </div>
 
-        <div className="max-h-96 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+        <div className="max-h-96 overflow-y-auto overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900">
               <tr className="text-xs text-gray-400 dark:text-gray-500 font-medium">
@@ -438,6 +438,7 @@ export default function Unidades({ usuario, abrirFicha, filtroSaludInicial }) {
           ) : filtradas.length === 0 ? (
             <div className="px-5 py-8 text-sm text-gray-400 dark:text-gray-500 text-center">No hay unidades cargadas todavía</div>
           ) : (
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-900">
                 <tr className="bg-gray-50 dark:bg-gray-900 text-xs text-gray-400 dark:text-gray-500 font-medium">
@@ -505,6 +506,7 @@ export default function Unidades({ usuario, abrirFicha, filtroSaludInicial }) {
                 ))}
               </tbody>
             </table>
+          </div>
           )}
         </div>
       </div>
