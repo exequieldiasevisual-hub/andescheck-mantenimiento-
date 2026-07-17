@@ -8,6 +8,12 @@ import BuscadorUnidad from './BuscadorUnidad'
 
 const SECCIONES = [
   {
+    titulo: 'Plataforma',
+    items: [
+      { key: 'empresas', label: 'Panel de Empresas' },
+    ],
+  },
+  {
     titulo: 'Principal',
     items: [
       { key: 'dashboard', label: 'Dashboard' },
@@ -49,6 +55,10 @@ const SECCIONES = [
 // nada de maestros ni métricas generales de la empresa.
 export const PAGINAS_TECNICO = ['ot', 'novedades', 'herramientas']
 
+// El super_admin es un rol de plataforma, no de una empresa cliente — no
+// opera el día a día de ninguna empresa, solo gestiona el panel de altas.
+export const PAGINAS_SUPERADMIN = ['empresas']
+
 export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
   const { tema, alternar } = useTema()
   const [unidades, setUnidades] = useState([])
@@ -56,22 +66,25 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
   const [usarSecuencias, setUsarSecuencias] = useState(false)
   const [abiertoMobile, setAbiertoMobile] = useState(false)
   const esTecnico = usuario?.rol === 'tecnico'
+  const esSuperAdmin = usuario?.rol === 'super_admin'
   const secciones = SECCIONES
     .map(s => ({
       ...s,
       items: s.items
         .filter(i => !esTecnico || PAGINAS_TECNICO.includes(i.key))
+        .filter(i => !esSuperAdmin || PAGINAS_SUPERADMIN.includes(i.key))
+        .filter(i => esSuperAdmin || i.key !== 'empresas')
         .filter(i => i.key !== 'secuencias' || usarSecuencias),
     }))
     .filter(s => s.items.length > 0)
 
   useEffect(() => {
-    if (esTecnico) return
+    if (esTecnico || esSuperAdmin) return
     supabase.from('unidades').select('id, descripcion, patente_serie').eq('activo', true).order('patente_serie')
       .then(({ data }) => setUnidades(data || []))
     supabase.from('configuracion').select('valor').eq('seccion', 'parametros').eq('clave', 'usar_secuencias').maybeSingle()
       .then(({ data }) => setUsarSecuencias(data?.valor === 'true'))
-  }, [esTecnico])
+  }, [esTecnico, esSuperAdmin])
 
   function irA(key) {
     setPagina(key)
@@ -112,7 +125,7 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
             <X size={18} />
           </button>
         </div>
-        {!esTecnico && (
+        {!esTecnico && !esSuperAdmin && (
           <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
             <BuscadorUnidad
               unidades={unidades}
