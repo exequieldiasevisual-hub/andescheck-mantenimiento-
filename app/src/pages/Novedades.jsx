@@ -219,7 +219,7 @@ export default function Novedades({ usuario, abrirOt }) {
           ) : filtradas.length === 0 ? (
             <div className="px-5 py-8 text-sm text-gray-400 text-center">No hay novedades que coincidan con los filtros</div>
           ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-[65vh] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-900">
                 <tr className="bg-gray-50 dark:bg-gray-900 text-xs text-gray-400 dark:text-gray-500 font-medium">
