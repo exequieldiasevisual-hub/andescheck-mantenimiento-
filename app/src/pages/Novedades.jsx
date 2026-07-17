@@ -78,7 +78,13 @@ export default function Novedades({ usuario, abrirOt }) {
   async function cargar() {
     setLoading(true)
     const [{ data: novedadesData }, { data: unidadesData }, { data: secuenciasData }, { data: tecnicosData }, { data: proveedoresData }] = await Promise.all([
-      supabase.from('novedades').select('*, unidades(descripcion, patente_serie, centro_costo, ciudad, tipo)').order('fecha', { ascending: false }),
+      supabase.from('novedades').select(`
+        *,
+        unidades(descripcion, patente_serie, centro_costo, ciudad, tipo),
+        reportante:usuarios!novedades_usuario_carga_fkey(nombre),
+        aprobador:usuarios!novedades_aprobada_por_fkey(nombre),
+        ot_vinculada:ot_cabecera!fk_novedades_ot(numero_ot, fecha_cierre)
+      `).order('fecha', { ascending: false }),
       supabase.from('unidades').select('id, descripcion, patente_serie, km_actuales, hs_actuales, centro_costo, ciudad, tipo').eq('activo', true).order('descripcion'),
       supabase.from('secuencias').select('id, nombre').eq('activo', true).order('nombre'),
       supabase.rpc('get_tecnicos_con_carga'),
@@ -155,11 +161,19 @@ export default function Novedades({ usuario, abrirOt }) {
           <button
             onClick={() => exportarXlsx('novedades', filtradas, [
               { label: 'Fecha', get: n => new Date(n.fecha).toLocaleDateString() },
+              { label: 'Patente', get: n => n.unidades?.patente_serie },
               { label: 'Unidad', get: n => n.unidades?.descripcion },
               { label: 'Descripción', get: n => n.descripcion },
               { label: 'Tipo', get: n => n.tipo },
               { label: 'Centro de costo', get: n => n.unidades?.centro_costo },
+              { label: 'Ciudad', get: n => n.unidades?.ciudad },
+              { label: 'Reportado por', get: n => n.reportante?.nombre },
               { label: 'Estado', get: n => n.estado },
+              { label: 'Motivo de rechazo', get: n => n.motivo_rechazo },
+              { label: 'Aprobado por', get: n => n.aprobador?.nombre },
+              { label: 'Fecha de aprobación', get: n => n.fecha_aprobacion ? new Date(n.fecha_aprobacion).toLocaleDateString() : '' },
+              { label: 'OT vinculada', get: n => n.ot_vinculada?.numero_ot },
+              { label: 'Fecha cumplimiento', get: n => n.ot_vinculada?.fecha_cierre ? new Date(n.ot_vinculada.fecha_cierre).toLocaleDateString() : '' },
             ])}
             className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-lg transition-colors"
           >
@@ -213,7 +227,10 @@ export default function Novedades({ usuario, abrirOt }) {
                   <th className="px-5 py-3 text-left">Unidad</th>
                   <th className="px-5 py-3 text-left">Descripción</th>
                   <th className="px-5 py-3 text-left">Centro de costo</th>
+                  <th className="px-5 py-3 text-left">Reportado por</th>
                   <th className="px-5 py-3 text-left">Estado</th>
+                  <th className="px-5 py-3 text-left">Aprobado por</th>
+                  <th className="px-5 py-3 text-left">Fecha cumplimiento</th>
                   <th className="px-5 py-3"></th>
                 </tr>
               </thead>
@@ -226,11 +243,16 @@ export default function Novedades({ usuario, abrirOt }) {
                     </td>
                     <td className="px-5 py-3 text-gray-900 dark:text-gray-100">{n.descripcion}</td>
                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{n.unidades?.centro_costo ?? '—'}</td>
+                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{n.reportante?.nombre ?? '—'}</td>
                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
                       {n.estado}
                       {n.estado === 'Rechazada' && n.motivo_rechazo && (
                         <div className="text-xs text-red-500" title={n.motivo_rechazo}>{n.motivo_rechazo}</div>
                       )}
+                    </td>
+                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{n.aprobador?.nombre ?? '—'}</td>
+                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
+                      {n.ot_vinculada?.fecha_cierre ? new Date(n.ot_vinculada.fecha_cierre).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-5 py-3 text-right whitespace-nowrap">
                       {n.foto_url && (
