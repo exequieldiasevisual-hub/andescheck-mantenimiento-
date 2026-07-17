@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { getUsuarioActual } from './lib/auth'
 import Login from './pages/Login'
-import Sidebar, { PAGINAS_TECNICO, PAGINAS_SUPERADMIN } from './components/Sidebar'
+import Sidebar, { PAGINAS_TECNICO } from './components/Sidebar'
 import PanelEmpresas from './pages/PanelEmpresas'
 import Dashboard from './pages/Dashboard'
 import Unidades from './pages/Unidades'
@@ -65,14 +65,13 @@ export default function App() {
 
   if (!usuario) return null
 
-  // El técnico y el super_admin no tienen acceso a los demás módulos — si
-  // por algún motivo pagina apunta a uno (ej. el estado inicial es
-  // 'dashboard'), se corrige acá mismo, sin esperar un efecto, para no
-  // llegar a renderizar la página restringida ni por un instante.
-  const paginaEfectiva =
-    usuario.rol === 'tecnico' && !PAGINAS_TECNICO.includes(pagina) ? 'ot' :
-    usuario.rol === 'super_admin' && !PAGINAS_SUPERADMIN.includes(pagina) ? 'empresas' :
-    pagina
+  // El técnico no tiene acceso a los demás módulos — si por algún motivo
+  // pagina apunta a uno (ej. el estado inicial es 'dashboard'), se corrige
+  // acá mismo, sin esperar un efecto, para no llegar a renderizar la página
+  // restringida ni por un instante. El super_admin no tiene esta
+  // restricción: además del Panel de Empresas, opera normalmente su
+  // propia empresa interna (AndesCheck Admin) como cualquier administrador.
+  const paginaEfectiva = usuario.rol === 'tecnico' && !PAGINAS_TECNICO.includes(pagina) ? 'ot' : pagina
 
   function renderPagina() {
     if (paginaEfectiva === 'empresas') return <PanelEmpresas />
