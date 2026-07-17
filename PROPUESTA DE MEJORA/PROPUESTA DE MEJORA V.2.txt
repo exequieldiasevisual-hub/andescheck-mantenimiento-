@@ -1,0 +1,32 @@
+- AL MOMENTO DE ACTUALIZAR EL KM DE LAS UNIDADES NO ME DEBE DEJAR INTRODUCIR UN KM U HORARIO ANTERIOR AL ULTIMO QUE TENGA REGISTRADO TAMBIEN TENGO QUE TENER UN HISTORIAL DE LA ACTUALIZACION DE KM O HORAS DE LAS UNIDADES 
+- EL VALOR DE REFERENCIA DE LAS UNIDADES DEBE SER LA PATENTE LUEGO EL TIPO LUEGO LA MARCA Y MODELO Y DESPUES EL RESTO DE LA INFORMACION 	
+- no me debe dejar crear la ot si no coloco la fecha de posible cierre 
+- en el catalogo de trabajos tenemos que tener algunas cosas pre cargadas por ejemplo los sistemas: electrico, frenos, general, hidraulico, motor, neumaticos, suspencion, trasmision, tenemos que crearlos una unica ves y apartir de ahi cada ves que creemos un trabajo podemos elegir que pertenece a alguno de los sistemas que ya tenemos pre cargados, tambien la posibilidad de exportarlos en excel y hacer una carga masiva desde 1 excel. (evaluar la posibilidad de que se verifique de manera automatica los trabajos para no crear trabajos duplicados), tambien tenemos que saber quien creo los trabajos que perfil los creo. y la fecha de creacion de los mismos 
+-  dentro de la orden de trabajo, no puedo seleccionar los trabajos que tengo en el catalogo, 
+- en la ot tanto para subir la foto como para subir el pdf deberiamos colocar un emoji con un boton para que se entienda, como esta actualmente puede prestarse a la discucion. 
+- al momento de imprimir la OT  abajo de todo debe decir power by ANDESCHECK y arriba de toodo al centro debe tener el logo de andescheck el nombre de la empresa lo debemos mantener a la izquiera a la altura de la orden de trabajo con su numero 
+- Sumemos la posibilidad de mandar por wsp si el proveedor tiene cargado el numero de celular podriamos mandar la orden de trabajo desde la misma plataforma. 
+- el tecnico no tiene para cumplir la ot, no hace falta que tenga el boton para imprimir el tecnico 
+- se puede colocar una geolocalizacion al momento de generar una novedad, no hace falta que muestre en vivo pero si un enlace que al momento de tocarlo marque la ubicacion donde se registro la novedad.?
+- el jefe de taller debe darle el ok a las novedades, reportadas por los tecnicos y si bajo su criterio es algo a realizar en una futura intervencion debe reportarla como novedad o darle cumplimiento
+- al momento de cargar documentacion tenemos que tener un menu desplegable para elegiar algunos de los documentos que tenemos pre cargados en el sistema, tambien la opcion que desde el celular podamos acceder a la camara para subir los archivos. 
+
+- tambien tener dentro de las configuraciones de la documentacion para establecer las fechas por documentos en las que se debe alertar los vencimientos de la documentacion.
+- en la documentacion cargada debemos tener, siempre el boton para editar y registro de actualizaciones y de cuando se actualizo por ultima ves el registro 
+- el numero de documento debe ser consecutivo no a libre eleccion 
+- el buscador debe centrarse siempre en el dominio de la unidad
+- en el apartado de docuentos debemos tener varios filtros por unidad por tipo de documento por vencimiento por fecha
+- SECUENCIAS DE MANTENIMIENTO: 
+- EL TIPO DE UNIDAD DEBE SER UN MENU DESPLEGABLE EN EL CUAL ELEGIR ALGUNOS DE LOS QUE ESTAN PRE CARGADOS. 
+- 
+STOCK: 
+- LA UNIDAD DE MEDIDA EN EL MODAL DE STOCK DEBE SER LAS PRE CARGADAS AL SISTEMA NO UN CUADRO PARA ESCRIBIR LO QUE A UNO LE PARECE. 
+- AL INTRODUCIR UN NUEVO REPUESTO SE DEBE VERIFICAR QUE NO EXISTE EL MISMO
+- DEBO TENER FILTROS EN EL STOCK PARA FILTRAR POR LA DESCRIPCION Y CODIGO
+- TENGO QUE TENER LA POSIBILIDAD DE TENER MAS DE 1 DEPOSITO 
+- AL MOMENTO DE EGRESAR UN ELEMENTO DEL STOCK TENGO QUE TENER REGISTRADO A QUIEN LE ESTOY TRANSFIRIENDO EL ELEMENTO LA HORA LA FECHA Y QUIEN ESTA REGISTRANDO ESA TRANSFERENCIA ESE REGISTRO OBVIAMENTE NO SE PUEDE BORRAR 
+SECUENCIAS: 
+- DENTRO DE ESTE MODULO TENGO QUE TENER UNA PESTAÑA DE RUTINAS DE MANTENIMIENTO PARA QUE YO PUEDO DAR LA PERIODICIDAD A LAS TAREAS, POR EJEMPLO TENGO QUE PODER CONFIGURAR REALIZAR UNA RUTINA CADA DETERMINADA CANTIDAD DE KM HORAS O DIAS, TAMBIEN TENGO QUE TENER UNA PESTAÑA QUE ME PERMITA ESTABLECER PERIODICIDAD PARA DETERMINADAS TAREAS POR EJEMPLO DEBERIA PODER CONFIGURAR UNA TAREA PARA QUE SE REPITA CADA DETERMINADA CANTIDAD DE HORAS DIAS O KM DE MANERA INDEPENDIENTE, POR EJEMPLO 1 ENGRASE CADA 15 DIAS O CADA 5 MIL KM POR FUERA DE LA RUTINA DE MANTENIMIENTO. 
+- DENTRO DEL MODAL DE CREACION Y EDICION DE LAS RUTINAS TENGO QUE TENER EN LAS TAREAS UN BUSCADOR PREDICTIVO PARA BUSCAR LAS TAREAS DEL CATALOGO Y TAMBIEN LO MISMO EN REPUESTOS REQUERIDOS SI NO CUANDO TENGA 13MIL REPUESTOS CARGADOS DEBERIA SCROLLEAR ENTRE ESOS 13MIL REPUESTOS 
+AL MOMENTO DE IMPLEMENTAR EL PREVENTIVO EL VALOR DE INGRESO SE DEBE COLOCAR A MANO NO TENGO QUE TENER DONDE COLOCAR EL PROXIMO KILOMETRAJE
+

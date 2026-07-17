@@ -1,0 +1,29 @@
+# Dependencias
+node_modules/
+app/node_modules/
+
+# Build
+app/dist/
+
+# Variables de entorno (secretos)
+.env
+.env.local
+app/.env
+app/.env.local
+
+# Prototipo viejo (HTML/JS plano, reemplazado por app/)
+/gs.js
+/index.html
+/package.json
+/package-lock.json
+
+# Tooling local
+.claude/
+.agents/
+
+# Metadatos locales del CLI de Supabase (expone project ref / org / pooler host)
+SUPABASE/.temp/
+
+# Sistema
+.DS_Store
+Thumbs.db
