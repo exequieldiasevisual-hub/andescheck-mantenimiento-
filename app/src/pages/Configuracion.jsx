@@ -12,8 +12,10 @@ const PARAMS = [
   { clave: 'whatsapp_admin', label: 'WhatsApp admin (con código país)' },
 ]
 
-function ParametrosGenerales({ empresaId, valores, onChange, razonSocialActual }) {
+function ParametrosGenerales({ empresaId, valores, onChange, razonSocialActual, logoActual }) {
   const [errorNombre, setErrorNombre] = useState('')
+  const [errorLogo, setErrorLogo] = useState('')
+  const [subiendoLogo, setSubiendoLogo] = useState(false)
 
   async function guardar(clave, valor) {
     await supabase.from('configuracion').upsert({ empresa_id: empresaId, seccion: 'parametros', clave, valor })
@@ -31,6 +33,20 @@ function ParametrosGenerales({ empresaId, valores, onChange, razonSocialActual }
     window.location.reload()
   }
 
+  async function subirLogo(archivo) {
+    setSubiendoLogo(true)
+    setErrorLogo('')
+    const path = `${empresaId}/logo-${Date.now()}.${archivo.name.split('.').pop()}`
+    const { error: upErr } = await supabase.storage.from('logos-empresa').upload(path, archivo)
+    if (upErr) { setSubiendoLogo(false); setErrorLogo(upErr.message); return }
+    const logoUrl = supabase.storage.from('logos-empresa').getPublicUrl(path).data.publicUrl
+    const { data, error } = await supabase.rpc('actualizar_logo_empresa', { p_logo_url: logoUrl })
+    setSubiendoLogo(false)
+    if (error) { setErrorLogo(error.message); return }
+    if (!data?.ok) { setErrorLogo(data.msg); return }
+    window.location.reload()
+  }
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
       <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Parámetros Generales</h2>
@@ -43,6 +59,19 @@ function ParametrosGenerales({ empresaId, valores, onChange, razonSocialActual }
             className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
           />
           {errorNombre && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{errorNombre}</p>}
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Logo de la empresa</label>
+          <div className="flex items-center gap-3">
+            {logoActual && <img src={logoActual} alt="Logo actual" className="h-9 w-9 object-contain rounded border border-gray-200 dark:border-gray-700" />}
+            <label className="flex items-center gap-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400">
+              {subiendoLogo ? 'Subiendo…' : logoActual ? 'Cambiar logo' : 'Subir logo'}
+              <input type="file" accept="image/*" disabled={subiendoLogo}
+                onChange={e => e.target.files[0] && subirLogo(e.target.files[0])}
+                className="hidden" />
+            </label>
+          </div>
+          {errorLogo && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{errorLogo}</p>}
         </div>
         {PARAMS.map(p => (
           <div key={p.clave}>
@@ -537,7 +566,7 @@ export default function Configuracion({ usuario }) {
       <div className="p-6 max-w-3xl space-y-6">
         {tab === 'General' && (
           <>
-            <ParametrosGenerales empresaId={usuario.empresa_id} valores={parametros} onChange={cargar} razonSocialActual={usuario.empresas?.razon_social} />
+            <ParametrosGenerales empresaId={usuario.empresa_id} valores={parametros} onChange={cargar} razonSocialActual={usuario.empresas?.razon_social} logoActual={usuario.empresas?.logo_url} />
             <ToggleUsarSecuencias empresaId={usuario.empresa_id} activo={parametros.usar_secuencias === 'true'} onChange={cargar} />
             <TablaCodigoDescripcion titulo="Centros de Costo" seccion="centros_costo" empresaId={usuario.empresa_id} filas={porSeccion('centros_costo')} onChange={cargar} />
             <TablaCodigoDescripcion titulo="Tipos de Unidad" seccion="tipos_unidad" empresaId={usuario.empresa_id} filas={porSeccion('tipos_unidad')} onChange={cargar} />

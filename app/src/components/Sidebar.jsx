@@ -116,7 +116,12 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
         <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-700 flex items-start justify-between">
           <div>
             <img src={logoAndesCheck} alt="AndesCheck" className="w-28 mb-2" />
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{usuario?.empresas?.razon_social}</p>
+            <div className="flex items-center gap-2">
+              {usuario?.empresas?.logo_url && (
+                <img src={usuario.empresas.logo_url} alt={usuario.empresas.razon_social} className="w-6 h-6 object-contain rounded shrink-0" />
+              )}
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{usuario?.empresas?.razon_social}</p>
+            </div>
             <p className="text-xs text-gray-400 mt-0.5">{usuario?.nombre} · {usuario?.rol}</p>
           </div>
           <button type="button" onClick={() => setAbiertoMobile(false)} className="md:hidden text-gray-400 hover:text-gray-600" aria-label="Cerrar menú">
