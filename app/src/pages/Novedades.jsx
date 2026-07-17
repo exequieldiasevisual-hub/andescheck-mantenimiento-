@@ -221,7 +221,9 @@ export default function Novedades({ usuario, abrirOt }) {
                 {filtradas.map(n => (
                   <tr key={n.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{new Date(n.fecha).toLocaleDateString()}</td>
-                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{n.unidades?.descripcion}</td>
+                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
+                      {[n.unidades?.patente_serie, n.unidades?.descripcion].filter(Boolean).join(' — ') || '—'}
+                    </td>
                     <td className="px-5 py-3 text-gray-900 dark:text-gray-100">{n.descripcion}</td>
                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{n.unidades?.centro_costo ?? '—'}</td>
                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
