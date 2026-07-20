@@ -404,20 +404,19 @@ export default function Reportes() {
         >
           Técnicos
         </button>
-        <button
-          onClick={() => setTab('panel')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            tab === 'panel' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-          }`}
-        >
-          Panel
-        </button>
       </div>
 
       <div className="p-6">
         {tab === 'costos' && <ReporteCostos mes={mes} />}
-        {tab === 'tecnicos' && <ReporteTecnicos mes={mes} />}
-        {tab === 'panel' && <PanelTecnicos mes={mes} />}
+        {tab === 'tecnicos' && (
+          <div className="space-y-6">
+            <ReporteTecnicos mes={mes} />
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 pt-2 border-t border-gray-200 dark:border-gray-700">Panel visual</h2>
+              <PanelTecnicos mes={mes} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
