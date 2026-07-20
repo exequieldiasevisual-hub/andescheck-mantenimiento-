@@ -11,6 +11,7 @@ const TARJETAS = [
   { key: 'stock_critico', label: 'Stock crítico' },
   { key: 'docs_vencidos', label: 'Documentos vencidos', porcentaje: true },
   { key: 'docs_por_vencer', label: 'Documentos por vencer' },
+  { key: 'combustible_alertas', label: 'Alertas de combustible' },
 ]
 
 const PUNTO_COLA = {
@@ -18,6 +19,7 @@ const PUNTO_COLA = {
   rutina: 'bg-amber-500',
   documento: 'bg-purple-500',
   novedad: 'bg-blue-500',
+  combustible: 'bg-orange-500',
 }
 
 const FILTROS_COLA = [
@@ -25,6 +27,7 @@ const FILTROS_COLA = [
   { tipo: 'rutina', label: 'Rutinas' },
   { tipo: 'documento', label: 'Documentación' },
   { tipo: 'novedad', label: 'Novedades' },
+  { tipo: 'combustible', label: 'Combustible' },
 ]
 
 export default function Dashboard({ abrirOt, navegarA }) {
@@ -75,6 +78,7 @@ export default function Dashboard({ abrirOt, navegarA }) {
     else if (item.tipo === 'rutina') navegarA('rutinas')
     else if (item.tipo === 'documento') navegarA('documentos')
     else if (item.tipo === 'novedad') navegarA('novedades')
+    else if (item.tipo === 'combustible') navegarA('combustible')
   }
 
   function valorTarjeta(t) {

@@ -80,6 +80,7 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
       tipo_mision: form.tipo_mision || null,
       km_actuales: form.km_actuales ? Number(form.km_actuales) : null,
       hs_actuales: form.hs_actuales ? Number(form.hs_actuales) : null,
+      capacidad_tanque_litros: form.capacidad_tanque_litros ? Number(form.capacidad_tanque_litros) : null,
     }
 
     const query = unidad?.id
@@ -152,6 +153,13 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
             <input type="number" value={form.hs_actuales || ''} onChange={e => setField('hs_actuales', e.target.value)}
               className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Capacidad de tanque (litros)</label>
+          <input type="number" value={form.capacidad_tanque_litros || ''} onChange={e => setField('capacidad_tanque_litros', e.target.value)}
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Opcional — habilita la alerta de carga imposible" />
         </div>
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
