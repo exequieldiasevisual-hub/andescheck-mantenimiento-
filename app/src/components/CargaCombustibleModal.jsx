@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useOnline, encolarRpc } from '../lib/offline'
 import Modal from './Modal'
 import BuscadorUnidad from './BuscadorUnidad'
 
@@ -13,6 +14,7 @@ export default function CargaCombustibleModal({ unidades, usuario, onClose, onSa
   const [comprobante, setComprobante] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const online = useOnline()
 
   const unidadSeleccionada = unidades.find(u => u.id === form.id_unidad)
 
@@ -26,15 +28,7 @@ export default function CargaCombustibleModal({ unidades, usuario, onClose, onSa
     setSaving(true)
     setError('')
 
-    let comprobante_url = null
-    if (comprobante) {
-      const path = `${usuario.empresa_id}/combustible/${Date.now()}-${comprobante.name}`
-      const { error: upErr } = await supabase.storage.from('ot-fotos').upload(path, comprobante)
-      if (upErr) { setSaving(false); setError(upErr.message); return }
-      comprobante_url = supabase.storage.from('ot-fotos').getPublicUrl(path).data.publicUrl
-    }
-
-    const { data, error } = await supabase.rpc('crear_carga_combustible', {
+    const argsBase = {
       p_id_unidad: form.id_unidad,
       p_fecha: new Date(form.fecha).toISOString(),
       p_origen: form.origen,
@@ -44,8 +38,27 @@ export default function CargaCombustibleModal({ unidades, usuario, onClose, onSa
       p_precio_total: form.precio_total === '' ? null : Number(form.precio_total),
       p_km_actuales: form.km_actuales === '' ? null : Number(form.km_actuales),
       p_hs_actuales: form.hs_actuales === '' ? null : Number(form.hs_actuales),
-      p_comprobante_url: comprobante_url,
-    })
+    }
+
+    // Sin conexión no se puede subir el comprobante a Storage — se encola
+    // solo el resto de la carga y se sincroniza sola al reconectar.
+    if (!online) {
+      encolarRpc('crear_carga_combustible', { ...argsBase, p_comprobante_url: null }, `Combustible: ${unidadSeleccionada?.descripcion ?? ''}`)
+      setSaving(false)
+      if (comprobante) { setError('El comprobante no se guardó — necesita conexión. La carga sí quedó guardada y se sincronizará sola.'); onSaved(); return }
+      onSaved()
+      return
+    }
+
+    let comprobante_url = null
+    if (comprobante) {
+      const path = `${usuario.empresa_id}/combustible/${Date.now()}-${comprobante.name}`
+      const { error: upErr } = await supabase.storage.from('ot-fotos').upload(path, comprobante)
+      if (upErr) { setSaving(false); setError(upErr.message); return }
+      comprobante_url = supabase.storage.from('ot-fotos').getPublicUrl(path).data.publicUrl
+    }
+
+    const { data, error } = await supabase.rpc('crear_carga_combustible', { ...argsBase, p_comprobante_url: comprobante_url })
 
     setSaving(false)
     if (error) { setError(error.message); return }

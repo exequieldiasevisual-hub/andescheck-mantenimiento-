@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useOnline, encolarRpc } from '../lib/offline'
 import Modal from './Modal'
 import BuscadorUnidad from './BuscadorUnidad'
 
@@ -14,23 +15,19 @@ function capturarUbicacion() {
   })
 }
 
-export default function EjecutarChecklistModal({ unidades, plantillas, onClose, onSaved }) {
+export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorPlantilla, onClose, onSaved }) {
   const [idUnidad, setIdUnidad] = useState('')
   const [idPlantilla, setIdPlantilla] = useState('')
-  const [items, setItems] = useState([])
   const [respuestas, setRespuestas] = useState({})
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const online = useOnline()
 
   const unidadSeleccionada = unidades.find(u => u.id === idUnidad)
   const plantillasDisponibles = plantillas.filter(p => !p.tipo_unidad || !unidadSeleccionada || p.tipo_unidad === unidadSeleccionada.tipo)
+  const items = itemsPorPlantilla[idPlantilla] || []
 
-  useEffect(() => {
-    if (!idPlantilla) { setItems([]); return }
-    supabase.from('checklist_items').select('*').eq('id_plantilla', idPlantilla).order('orden')
-      .then(({ data }) => { setItems(data || []); setRespuestas({}) })
-  }, [idPlantilla])
-
+  function elegirPlantilla(id) { setIdPlantilla(id); setRespuestas({}) }
   function setRespuesta(idItem, valor) { setRespuestas(r => ({ ...r, [idItem]: valor })) }
 
   async function handleSubmit(e) {
@@ -44,13 +41,21 @@ export default function EjecutarChecklistModal({ unidades, plantillas, onClose, 
     setError('')
 
     const ubicacion_url = await capturarUbicacion()
-
-    const { data, error } = await supabase.rpc('ejecutar_checklist', {
+    const args = {
       p_id_plantilla: idPlantilla,
       p_id_unidad: idUnidad,
       p_respuestas: items.map(i => ({ id_item: i.id, respuesta: respuestas[i.id] })),
       p_ubicacion_url: ubicacion_url,
-    })
+    }
+
+    if (!online) {
+      encolarRpc('ejecutar_checklist', args, `Checklist: ${unidadSeleccionada?.descripcion ?? ''}`)
+      setSaving(false)
+      onSaved(null)
+      return
+    }
+
+    const { data, error } = await supabase.rpc('ejecutar_checklist', args)
 
     setSaving(false)
     if (error) { setError(error.message); return }
@@ -68,7 +73,7 @@ export default function EjecutarChecklistModal({ unidades, plantillas, onClose, 
 
         <div>
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Plantilla *</label>
-          <select value={idPlantilla} onChange={e => setIdPlantilla(e.target.value)}
+          <select value={idPlantilla} onChange={e => elegirPlantilla(e.target.value)}
             className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required>
             <option value="">Seleccionar plantilla...</option>
             {plantillasDisponibles.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}

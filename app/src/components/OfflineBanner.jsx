@@ -17,7 +17,7 @@ export default function OfflineBanner() {
 
   return (
     <div className={`px-4 py-1.5 text-xs text-center text-white ${online ? 'bg-blue-600' : 'bg-amber-600'}`}>
-      {!online && '📵 Sin conexión — las novedades y notas se guardan localmente y se sincronizan al reconectar'}
+      {!online && '📵 Sin conexión — los cambios se guardan localmente y se sincronizan al reconectar'}
       {online && cola.length > 0 && (
         <>
           {cola.length} cambio(s) pendiente(s) de sincronizar.{' '}

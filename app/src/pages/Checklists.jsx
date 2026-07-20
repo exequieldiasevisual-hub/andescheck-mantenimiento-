@@ -126,6 +126,7 @@ function HistorialEjecucion({ ejecucion }) {
 function EjecutarEHistorial() {
   const [unidades, setUnidades] = useState([])
   const [plantillas, setPlantillas] = useState([])
+  const [itemsPorPlantilla, setItemsPorPlantilla] = useState({})
   const [ejecuciones, setEjecuciones] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalAbierto, setModalAbierto] = useState(false)
@@ -133,9 +134,13 @@ function EjecutarEHistorial() {
 
   async function cargar() {
     setLoading(true)
-    const [{ data: unidadesData }, { data: plantillasData }, { data: ejecucionesData }] = await Promise.all([
+    const [{ data: unidadesData }, { data: plantillasData }, { data: itemsData }, { data: ejecucionesData }] = await Promise.all([
       supabase.from('unidades').select('id, descripcion, patente_serie, tipo').eq('activo', true).order('descripcion'),
       supabase.from('checklist_plantillas').select('id, nombre, tipo_unidad').eq('activo', true).order('nombre'),
+      // Se traen los ítems de todas las plantillas de una — así el modal de
+      // ejecución no depende de una consulta nueva al elegir la plantilla,
+      // y se puede completar un checklist aunque se haya perdido la señal.
+      supabase.from('checklist_items').select('*').order('orden'),
       supabase.from('checklist_ejecuciones')
         .select('*, unidades(descripcion, patente_serie), checklist_plantillas(nombre), usuarios(nombre)')
         .order('fecha', { ascending: false })
@@ -143,6 +148,12 @@ function EjecutarEHistorial() {
     ])
     setUnidades(unidadesData || [])
     setPlantillas(plantillasData || [])
+    const porPlantilla = {}
+    for (const item of itemsData || []) {
+      if (!porPlantilla[item.id_plantilla]) porPlantilla[item.id_plantilla] = []
+      porPlantilla[item.id_plantilla].push(item)
+    }
+    setItemsPorPlantilla(porPlantilla)
     setEjecuciones(ejecucionesData || [])
     setLoading(false)
   }
@@ -188,10 +199,17 @@ function EjecutarEHistorial() {
         <EjecutarChecklistModal
           unidades={unidades}
           plantillas={plantillas}
+          itemsPorPlantilla={itemsPorPlantilla}
           onClose={() => setModalAbierto(false)}
           onSaved={novedadesGeneradas => {
             setModalAbierto(false)
-            setMensaje(novedadesGeneradas > 0 ? `Checklist guardado — se generaron ${novedadesGeneradas} novedad(es) automática(s)` : 'Checklist guardado')
+            setMensaje(
+              novedadesGeneradas == null
+                ? 'Checklist guardado sin conexión — se va a sincronizar solo cuando vuelva la señal'
+                : novedadesGeneradas > 0
+                  ? `Checklist guardado — se generaron ${novedadesGeneradas} novedad(es) automática(s)`
+                  : 'Checklist guardado'
+            )
             cargar()
           }}
         />
