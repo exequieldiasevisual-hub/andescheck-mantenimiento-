@@ -370,6 +370,110 @@ function PanelTecnicos({ mes }) {
   )
 }
 
+function GestionOt({ mes }) {
+  const [datos, setDatos] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setDatos(null)
+    setError('')
+    supabase.rpc('get_gestion_ot', { p_mes: mes }).then(({ data, error }) => {
+      if (error) setError(error.message)
+      else if (!data?.ok) setError(data?.msg ?? 'No se pudo cargar el reporte')
+      else setDatos(data)
+    })
+  }, [mes])
+
+  function exportar() {
+    if (!datos) return
+    exportarXlsx(`gestion_ot_${mes}`, datos.detalle, [
+      { label: 'N° OT', get: d => d.numero_ot },
+      { label: 'Fecha de creación', get: d => new Date(d.fecha_apertura).toLocaleDateString() },
+      { label: 'Creado por', get: d => d.creador },
+      { label: 'Motivo de ingreso', get: d => d.motivo_ingreso },
+    ])
+  }
+
+  if (error) return <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+  if (!datos) return <p className="text-sm text-gray-400">Cargando…</p>
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 tabular-nums">{datos.total_ot}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">OT generadas este mes</p>
+        </div>
+        <button
+          onClick={exportar}
+          className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-lg transition-colors"
+        >
+          ↓ Excel
+        </button>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+          <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Estado de la OT</h2>
+          <Donut datos={datos.por_estado} valueKey="cantidad" labelKey="estado" hueco />
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+          <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Condición de cierre</h2>
+          <Donut datos={datos.por_condicion_cierre} valueKey="cantidad" labelKey="condicion" />
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+          <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Por tipo de OT</h2>
+          <BarrasHorizontales datos={datos.por_tipo} valueKey="cantidad" labelKey="tipo" />
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+          <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Por prioridad</h2>
+          <BarrasHorizontales datos={datos.por_prioridad} valueKey="cantidad" labelKey="prioridad" />
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <TablaReporte titulo="Creado por" filas={datos.por_creador.map(f => ({ ...f, total: f.cantidad }))} columnas={{ etiqueta: f => f.nombre }} />
+        <TablaReporte titulo="Proveedor" filas={datos.por_proveedor.map(f => ({ ...f, total: f.cantidad }))} columnas={{ etiqueta: f => f.proveedor }} />
+      </div>
+
+      <TablaReporte titulo="Motivo de pausa" filas={datos.por_motivo_pausa.map(f => ({ ...f, total: f.cantidad }))} columnas={{ etiqueta: f => f.motivo }} />
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 px-5 pt-4">Detalle</h2>
+        {datos.detalle.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-gray-400 text-center">Sin datos</p>
+        ) : (
+          <div className="overflow-x-auto mt-2 max-h-96 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-900">
+                <tr className="text-xs text-gray-400 dark:text-gray-500 font-medium">
+                  <th className="px-5 py-3 text-left">N° OT</th>
+                  <th className="px-5 py-3 text-left">Fecha de creación</th>
+                  <th className="px-5 py-3 text-left">Creado por</th>
+                  <th className="px-5 py-3 text-left">Motivo de ingreso</th>
+                </tr>
+              </thead>
+              <tbody>
+                {datos.detalle.map((d, i) => (
+                  <tr key={i} className="border-t border-gray-100 dark:border-gray-800">
+                    <td className="px-5 py-3 text-gray-900 dark:text-gray-100 font-medium">{d.numero_ot}</td>
+                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{new Date(d.fecha_apertura).toLocaleDateString()}</td>
+                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{d.creador}</td>
+                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{d.motivo_ingreso}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Reportes() {
   const [mes, setMes] = useState(new Date().toISOString().slice(0, 7))
   const [tab, setTab] = useState('costos')
@@ -403,10 +507,19 @@ export default function Reportes() {
         >
           Técnicos
         </button>
+        <button
+          onClick={() => setTab('gestion_ot')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === 'gestion_ot' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+          }`}
+        >
+          Gestión OT
+        </button>
       </div>
 
       <div className="p-6">
         {tab === 'costos' && <ReporteCostos mes={mes} />}
+        {tab === 'gestion_ot' && <GestionOt mes={mes} />}
         {tab === 'tecnicos' && (
           <div className="space-y-6">
             <ReporteTecnicos mes={mes} />
