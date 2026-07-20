@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { exportarXlsx } from '../lib/exportarXlsx'
+import MultiSelectFiltro from '../components/MultiSelectFiltro'
 
 function money(v) {
   return `$${Number(v || 0).toLocaleString('es-AR')}`
@@ -237,7 +238,7 @@ function PanelTecnicos({ mes }) {
   const [tecnicos, setTecnicos] = useState([])
   const [centros, setCentros] = useState([])
   const [ciudades, setCiudades] = useState([])
-  const [filtroTecnico, setFiltroTecnico] = useState('')
+  const [filtroTecnicos, setFiltroTecnicos] = useState([])
   const [filtroCentro, setFiltroCentro] = useState('')
   const [filtroCiudad, setFiltroCiudad] = useState('')
   const [datos, setDatos] = useState(null)
@@ -258,7 +259,7 @@ function PanelTecnicos({ mes }) {
     setError('')
     supabase.rpc('get_panel_tecnicos', {
       p_mes: mes,
-      p_tecnico: filtroTecnico || null,
+      p_tecnicos: filtroTecnicos.length > 0 ? filtroTecnicos : null,
       p_centro_costo: filtroCentro || null,
       p_ciudad: filtroCiudad || null,
     }).then(({ data, error }) => {
@@ -266,16 +267,14 @@ function PanelTecnicos({ mes }) {
       else if (!data?.ok) setError(data?.msg ?? 'No se pudo cargar el panel')
       else setDatos(data)
     })
-  }, [mes, filtroTecnico, filtroCentro, filtroCiudad])
+  }, [mes, filtroTecnicos, filtroCentro, filtroCiudad])
+
+  const nombrePorTecnico = Object.fromEntries(tecnicos.map(t => [t.id, t.nombre]))
 
   return (
     <div className="space-y-4">
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap gap-3">
-        <select aria-label="Filtrar por técnico" value={filtroTecnico} onChange={e => setFiltroTecnico(e.target.value)}
-          className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="">Todos los técnicos</option>
-          {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-        </select>
+        <MultiSelectFiltro label="Técnico" opciones={tecnicos.map(t => t.id)} seleccionados={filtroTecnicos} onChange={setFiltroTecnicos} etiquetas={nombrePorTecnico} soloEtiqueta />
         <select aria-label="Filtrar por centro de costo" value={filtroCentro} onChange={e => setFiltroCentro(e.target.value)}
           className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="">Todos los centros de costo</option>

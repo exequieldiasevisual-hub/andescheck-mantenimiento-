@@ -2,10 +2,13 @@
 -- Tablero tipo BI para controlar técnicos: total de tareas por técnico,
 -- eficiencia (horas reales vs estimadas), distribución por tipo de OT,
 -- por tipo de unidad, por sistema/categoría del catálogo, y detalle fila
--- por fila. Filtros opcionales por técnico, centro de costo y ciudad.
+-- por fila. Filtros opcionales por técnicos (varios a la vez), centro de
+-- costo y ciudad.
+
+drop function if exists get_panel_tecnicos(text, uuid, text, text);
 
 create or replace function get_panel_tecnicos(
-  p_mes text, p_tecnico uuid default null, p_centro_costo text default null, p_ciudad text default null
+  p_mes text, p_tecnicos uuid[] default null, p_centro_costo text default null, p_ciudad text default null
 )
 returns jsonb language plpgsql security definer as $$
 declare
@@ -43,7 +46,7 @@ begin
   left join catalogo_trabajos ct on ct.id = t.id_catalogo
   where ot.empresa_id = v_empresa and t.estado = 'Completada'
     and t.fecha_fin >= v_desde and t.fecha_fin < v_hasta
-    and (p_tecnico is null or tec = p_tecnico)
+    and (p_tecnicos is null or tec = any(p_tecnicos))
     and (p_centro_costo is null or uni.centro_costo = p_centro_costo)
     and (p_ciudad is null or uni.ciudad = p_ciudad);
 
@@ -102,4 +105,4 @@ begin
 end;
 $$;
 
-grant execute on function get_panel_tecnicos(text, uuid, text, text) to authenticated;
+grant execute on function get_panel_tecnicos(text, uuid[], text, text) to authenticated;
