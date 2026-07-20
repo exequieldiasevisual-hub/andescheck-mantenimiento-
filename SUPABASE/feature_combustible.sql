@@ -101,7 +101,12 @@ grant execute on function crear_carga_combustible(uuid, timestamptz, text, text,
 -- get_cargas_combustible: listado con rendimiento calculado (km u horas
 -- por litro, contra la carga anterior de la misma unidad).
 -- ---------------------------------------------------------------------
-create or replace function get_cargas_combustible(p_desde date default null, p_hasta date default null, p_id_unidad uuid default null)
+drop function if exists get_cargas_combustible(date, date, uuid);
+
+create or replace function get_cargas_combustible(
+  p_desde date default null, p_hasta date default null,
+  p_unidades uuid[] default null, p_centros text[] default null, p_ciudades text[] default null
+)
 returns jsonb language plpgsql security definer as $$
 declare
   v_empresa uuid := empresa_actual();
@@ -119,7 +124,9 @@ begin
       join unidades u on u.id = c.id_unidad
       left join usuarios uu on uu.id = c.usuario_carga
       where c.empresa_id = v_empresa
-        and (p_id_unidad is null or c.id_unidad = p_id_unidad)
+        and (p_unidades is null or c.id_unidad = any(p_unidades))
+        and (p_centros is null or u.centro_costo = any(p_centros))
+        and (p_ciudades is null or u.ciudad = any(p_ciudades))
         and (p_desde is null or c.fecha::date >= p_desde)
         and (p_hasta is null or c.fecha::date <= p_hasta)
     )
@@ -142,7 +149,7 @@ begin
 end;
 $$;
 
-grant execute on function get_cargas_combustible(date, date, uuid) to authenticated;
+grant execute on function get_cargas_combustible(date, date, uuid[], text[], text[]) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- get_alertas_combustible: desvíos detectados (control de combustible).

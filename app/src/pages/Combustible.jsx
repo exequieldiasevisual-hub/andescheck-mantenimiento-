@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { exportarXlsx } from '../lib/exportarXlsx'
 import CargaCombustibleModal from '../components/CargaCombustibleModal'
+import MultiSelectFiltro from '../components/MultiSelectFiltro'
 
 export default function Combustible({ usuario }) {
   const [unidades, setUnidades] = useState([])
@@ -9,14 +10,21 @@ export default function Combustible({ usuario }) {
   const [alertas, setAlertas] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalAbierto, setModalAbierto] = useState(false)
-  const [filtroUnidad, setFiltroUnidad] = useState('')
+  const [filtroUnidades, setFiltroUnidades] = useState([])
+  const [filtroCentro, setFiltroCentro] = useState([])
+  const [filtroCiudad, setFiltroCiudad] = useState([])
+  const [etiquetasConfig, setEtiquetasConfig] = useState({})
   const [error, setError] = useState('')
 
   async function cargar() {
     setLoading(true)
     setError('')
     const [{ data: cargasData, error: cargasError }, { data: alertasData }] = await Promise.all([
-      supabase.rpc('get_cargas_combustible', { p_id_unidad: filtroUnidad || null }),
+      supabase.rpc('get_cargas_combustible', {
+        p_unidades: filtroUnidades.length > 0 ? filtroUnidades : null,
+        p_centros: filtroCentro.length > 0 ? filtroCentro : null,
+        p_ciudades: filtroCiudad.length > 0 ? filtroCiudad : null,
+      }),
       supabase.rpc('get_alertas_combustible'),
     ])
     if (cargasError) setError(cargasError.message)
@@ -26,11 +34,22 @@ export default function Combustible({ usuario }) {
   }
 
   useEffect(() => {
-    supabase.from('unidades').select('id, descripcion, patente_serie, km_actuales, hs_actuales').eq('activo', true).order('descripcion')
+    supabase.from('unidades').select('id, descripcion, patente_serie, km_actuales, hs_actuales, centro_costo, ciudad').eq('activo', true).order('descripcion')
       .then(({ data }) => setUnidades(data || []))
+    supabase.from('configuracion').select('seccion, clave, valor')
+      .in('seccion', ['centros_costo', 'ciudades'])
+      .then(({ data }) => {
+        const porSeccion = { centros_costo: {}, ciudades: {} }
+        for (const fila of data || []) porSeccion[fila.seccion][fila.clave] = fila.valor
+        setEtiquetasConfig(porSeccion)
+      })
   }, [])
 
-  useEffect(() => { cargar() }, [filtroUnidad])
+  useEffect(() => { cargar() }, [filtroUnidades, filtroCentro, filtroCiudad])
+
+  const nombrePorUnidad = Object.fromEntries(unidades.map(u => [u.id, [u.patente_serie, u.descripcion].filter(Boolean).join(' — ')]))
+  const centros = [...new Set(unidades.map(u => u.centro_costo).filter(Boolean))].sort()
+  const ciudades = [...new Set(unidades.map(u => u.ciudad).filter(Boolean))].sort()
 
   function exportar() {
     exportarXlsx('combustible', cargas, [
@@ -81,11 +100,9 @@ export default function Combustible({ usuario }) {
         )}
 
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap gap-3">
-          <select aria-label="Filtrar por unidad" value={filtroUnidad} onChange={e => setFiltroUnidad(e.target.value)}
-            className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Todas las unidades</option>
-            {unidades.map(u => <option key={u.id} value={u.id}>{[u.patente_serie, u.descripcion].filter(Boolean).join(' — ')}</option>)}
-          </select>
+          <MultiSelectFiltro label="Unidad" opciones={unidades.map(u => u.id)} seleccionados={filtroUnidades} onChange={setFiltroUnidades} etiquetas={nombrePorUnidad} soloEtiqueta />
+          <MultiSelectFiltro label="Centro de costo" opciones={centros} seleccionados={filtroCentro} onChange={setFiltroCentro} etiquetas={etiquetasConfig.centros_costo} />
+          <MultiSelectFiltro label="Ciudad" opciones={ciudades} seleccionados={filtroCiudad} onChange={setFiltroCiudad} etiquetas={etiquetasConfig.ciudades} />
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
