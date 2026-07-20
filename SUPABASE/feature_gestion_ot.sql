@@ -17,7 +17,9 @@
 --   Anulada, Cerrada (incluye Cerrada_Vencida), Cumplida al 100% (todas
 --   las tareas completas pero sin cerrar todavía = listo_cierre), Abierta.
 
-create or replace function get_gestion_ot(p_mes text)
+drop function if exists get_gestion_ot(text);
+
+create or replace function get_gestion_ot(p_mes text, p_creadores uuid[] default null)
 returns jsonb language plpgsql security definer as $$
 declare
   v_empresa uuid := empresa_actual();
@@ -38,7 +40,7 @@ begin
   create temp table _ot_gestion on commit drop as
   select
     o.id, o.numero_ot, o.tipo, o.prioridad, o.estado, o.fecha_apertura, o.fecha_cierre,
-    o.fecha_est_cierre, o.descripcion,
+    o.fecha_est_cierre, o.descripcion, o.supervisor as id_creador,
     coalesce(u_sup.nombre, 'Sin asignar') as creador,
     coalesce(p.razon_social, 'Sin proveedor') as proveedor,
     (t.total > 0 and t.completadas = t.total and o.estado in ('Abierta','En_Curso')) as listo_cierre,
@@ -66,7 +68,8 @@ begin
     select id_ot, count(*) as total, count(*) filter (where estado = 'Completada') as completadas
     from ot_tareas group by id_ot
   ) t on t.id_ot = o.id
-  where o.empresa_id = v_empresa and o.fecha_apertura >= v_desde and o.fecha_apertura < v_hasta;
+  where o.empresa_id = v_empresa and o.fecha_apertura >= v_desde and o.fecha_apertura < v_hasta
+    and (p_creadores is null or o.supervisor = any(p_creadores));
 
   return jsonb_build_object(
     'ok', true,
@@ -116,4 +119,4 @@ begin
 end;
 $$;
 
-grant execute on function get_gestion_ot(text) to authenticated;
+grant execute on function get_gestion_ot(text, uuid[]) to authenticated;

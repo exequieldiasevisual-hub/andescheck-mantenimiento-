@@ -371,18 +371,30 @@ function PanelTecnicos({ mes }) {
 }
 
 function GestionOt({ mes }) {
+  const [creadores, setCreadores] = useState([])
+  const [filtroCreadores, setFiltroCreadores] = useState([])
   const [datos, setDatos] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    supabase.from('usuarios').select('id, nombre').in('rol', ['administrador', 'supervisor']).eq('activo', true).order('nombre')
+      .then(({ data }) => setCreadores(data || []))
+  }, [])
+
+  useEffect(() => {
     setDatos(null)
     setError('')
-    supabase.rpc('get_gestion_ot', { p_mes: mes }).then(({ data, error }) => {
+    supabase.rpc('get_gestion_ot', {
+      p_mes: mes,
+      p_creadores: filtroCreadores.length > 0 ? filtroCreadores : null,
+    }).then(({ data, error }) => {
       if (error) setError(error.message)
       else if (!data?.ok) setError(data?.msg ?? 'No se pudo cargar el reporte')
       else setDatos(data)
     })
-  }, [mes])
+  }, [mes, filtroCreadores])
+
+  const nombrePorCreador = Object.fromEntries(creadores.map(c => [c.id, c.nombre]))
 
   function exportar() {
     if (!datos) return
@@ -394,11 +406,16 @@ function GestionOt({ mes }) {
     ])
   }
 
-  if (error) return <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-  if (!datos) return <p className="text-sm text-gray-400">Cargando…</p>
-
   return (
     <div className="space-y-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap gap-3">
+        <MultiSelectFiltro label="Creado por" opciones={creadores.map(c => c.id)} seleccionados={filtroCreadores} onChange={setFiltroCreadores} etiquetas={nombrePorCreador} soloEtiqueta />
+      </div>
+
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {!datos && !error && <p className="text-sm text-gray-400">Cargando…</p>}
+      {datos && (
+      <>
       <div className="flex items-center justify-between">
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
           <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 tabular-nums">{datos.total_ot}</p>
@@ -470,6 +487,8 @@ function GestionOt({ mes }) {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   )
 }
