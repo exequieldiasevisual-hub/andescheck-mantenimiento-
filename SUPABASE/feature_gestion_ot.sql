@@ -3,6 +3,10 @@
 -- tipo, por prioridad, por creador (supervisor), por estado, por
 -- condición de cierre, por motivo de pausa, por proveedor, y detalle.
 --
+-- Filtro cruzado tipo Power BI: además del filtro global "Creado por",
+-- cada tarjeta se puede clickear y filtra el resto (p_estados, p_condiciones,
+-- p_tipos, p_prioridades, p_proveedores, p_motivos), todos combinados con AND.
+--
 -- Condición de cierre (regla acordada):
 --   - Ventana original (fecha_est_cierre - fecha_apertura) <= 24hs:
 --       cerrada dentro de esa ventana -> "Cierre OK"
@@ -18,8 +22,14 @@
 --   las tareas completas pero sin cerrar todavía = listo_cierre), Abierta.
 
 drop function if exists get_gestion_ot(text);
+drop function if exists get_gestion_ot(text, uuid[]);
 
-create or replace function get_gestion_ot(p_mes text, p_creadores uuid[] default null)
+create or replace function get_gestion_ot(
+  p_mes text, p_creadores uuid[] default null,
+  p_estados text[] default null, p_condiciones text[] default null,
+  p_tipos text[] default null, p_prioridades text[] default null,
+  p_proveedores uuid[] default null, p_motivos text[] default null
+)
 returns jsonb language plpgsql security definer as $$
 declare
   v_empresa uuid := empresa_actual();
@@ -40,7 +50,7 @@ begin
   create temp table _ot_gestion on commit drop as
   select
     o.id, o.numero_ot, o.tipo, o.prioridad, o.estado, o.fecha_apertura, o.fecha_cierre,
-    o.fecha_est_cierre, o.descripcion, o.supervisor as id_creador,
+    o.fecha_est_cierre, o.descripcion, o.supervisor as id_creador, o.proveedor as id_proveedor,
     coalesce(u_sup.nombre, 'Sin asignar') as creador,
     coalesce(p.razon_social, 'Sin proveedor') as proveedor,
     (t.total > 0 and t.completadas = t.total and o.estado in ('Abierta','En_Curso')) as listo_cierre,
@@ -71,6 +81,16 @@ begin
   where o.empresa_id = v_empresa and o.fecha_apertura >= v_desde and o.fecha_apertura < v_hasta
     and (p_creadores is null or o.supervisor = any(p_creadores));
 
+  -- Filtros cruzados: se aplican sobre las columnas ya calculadas arriba.
+  delete from _ot_gestion where p_estados is not null and not (estado_desglosado = any(p_estados));
+  delete from _ot_gestion where p_condiciones is not null and not (coalesce(condicion_cierre, '') = any(p_condiciones));
+  delete from _ot_gestion where p_tipos is not null and not (coalesce(tipo, 'Sin tipo') = any(p_tipos));
+  delete from _ot_gestion where p_prioridades is not null and not (coalesce(prioridad, 'Sin prioridad') = any(p_prioridades));
+  delete from _ot_gestion where p_proveedores is not null and not (id_proveedor = any(p_proveedores));
+  delete from _ot_gestion where p_motivos is not null and id not in (
+    select id_ot from ot_tareas where motivo_pausa = any(p_motivos)
+  );
+
   return jsonb_build_object(
     'ok', true,
     'mes', p_mes,
@@ -84,8 +104,8 @@ begin
       from (select coalesce(prioridad, 'Sin prioridad') as prioridad, count(*) as n from _ot_gestion group by 1) s
     ), '[]'::jsonb),
     'por_creador', coalesce((
-      select jsonb_agg(jsonb_build_object('nombre', creador, 'cantidad', n) order by n desc)
-      from (select creador, count(*) as n from _ot_gestion group by 1) s
+      select jsonb_agg(jsonb_build_object('id', id_creador, 'nombre', creador, 'cantidad', n) order by n desc)
+      from (select id_creador, creador, count(*) as n from _ot_gestion group by 1, 2) s
     ), '[]'::jsonb),
     'por_estado', coalesce((
       select jsonb_agg(jsonb_build_object('estado', estado_desglosado, 'cantidad', n) order by n desc)
@@ -106,8 +126,8 @@ begin
       ) s
     ), '[]'::jsonb),
     'por_proveedor', coalesce((
-      select jsonb_agg(jsonb_build_object('proveedor', proveedor, 'cantidad', n) order by n desc)
-      from (select proveedor, count(*) as n from _ot_gestion group by 1) s
+      select jsonb_agg(jsonb_build_object('id', id_proveedor, 'proveedor', proveedor, 'cantidad', n) order by n desc)
+      from (select id_proveedor, proveedor, count(*) as n from _ot_gestion group by 1, 2) s
     ), '[]'::jsonb),
     'detalle', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -119,4 +139,4 @@ begin
 end;
 $$;
 
-grant execute on function get_gestion_ot(text, uuid[]) to authenticated;
+grant execute on function get_gestion_ot(text, uuid[], text[], text[], text[], text[], uuid[], text[]) to authenticated;

@@ -9,7 +9,9 @@ function money(v) {
 
 const COLORES = ['#3b82f6', '#f97316', '#8b5cf6', '#22c55e', '#ef4444', '#06b6d4', '#eab308', '#ec4899', '#14b8a6', '#6366f1', '#84cc16', '#f43f5e']
 
-function Donut({ datos, valueKey, labelKey, hueco = false }) {
+// seleccionados/onToggle son opcionales — si se pasan, la leyenda se vuelve
+// clickeable (filtro cruzado tipo Power BI) y resalta lo elegido.
+function Donut({ datos, valueKey, labelKey, hueco = false, seleccionados, onToggle }) {
   const total = datos.reduce((s, d) => s + Number(d[valueKey] || 0), 0)
   let acc = 0
   const stops = datos.map((d, i) => {
@@ -18,6 +20,8 @@ function Donut({ datos, valueKey, labelKey, hueco = false }) {
     acc += pct
     return `${COLORES[i % COLORES.length]} ${desde}% ${acc}%`
   }).join(', ')
+  const interactivo = typeof onToggle === 'function'
+  const hayFiltro = interactivo && seleccionados.length > 0
 
   return (
     <div className="flex items-center gap-4">
@@ -27,34 +31,90 @@ function Donut({ datos, valueKey, labelKey, hueco = false }) {
       </div>
       <div className="space-y-1 text-xs min-w-0">
         {datos.length === 0 && <p className="text-gray-400">Sin datos</p>}
-        {datos.map((d, i) => (
-          <div key={d[labelKey]} className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORES[i % COLORES.length] }} />
-            <span className="text-gray-600 dark:text-gray-400 truncate">{d[labelKey]}</span>
-            <span className="text-gray-400 ml-auto tabular-nums shrink-0">
-              {total > 0 ? Math.round((Number(d[valueKey]) / total) * 100) : 0}%
-            </span>
-          </div>
-        ))}
+        {datos.map((d, i) => {
+          const activo = interactivo && seleccionados.includes(d[labelKey])
+          const Tag = interactivo ? 'button' : 'div'
+          return (
+            <Tag
+              key={d[labelKey]}
+              type={interactivo ? 'button' : undefined}
+              onClick={interactivo ? () => onToggle(d[labelKey]) : undefined}
+              className={`flex items-center gap-2 w-full text-left ${interactivo ? 'cursor-pointer hover:opacity-80' : ''} ${hayFiltro && !activo ? 'opacity-40' : ''}`}
+            >
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORES[i % COLORES.length] }} />
+              <span className={`text-gray-600 dark:text-gray-400 truncate ${activo ? 'font-semibold text-gray-900 dark:text-gray-100' : ''}`}>{d[labelKey]}</span>
+              <span className="text-gray-400 ml-auto tabular-nums shrink-0">
+                {total > 0 ? Math.round((Number(d[valueKey]) / total) * 100) : 0}%
+              </span>
+            </Tag>
+          )
+        })}
       </div>
     </div>
   )
 }
 
-function BarrasHorizontales({ datos, valueKey, labelKey }) {
+function BarrasHorizontales({ datos, valueKey, labelKey, seleccionados, onToggle }) {
   const max = Math.max(1, ...datos.map(d => Number(d[valueKey] || 0)))
+  const interactivo = typeof onToggle === 'function'
+  const hayFiltro = interactivo && seleccionados.length > 0
   return (
     <div className="space-y-2">
       {datos.length === 0 && <p className="text-gray-400 text-xs">Sin datos</p>}
-      {datos.map(d => (
-        <div key={d[labelKey]} className="flex items-center gap-2 text-xs">
-          <span className="w-32 shrink-0 text-gray-600 dark:text-gray-400 truncate" title={d[labelKey]}>{d[labelKey]}</span>
-          <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded h-4 overflow-hidden">
-            <div className="h-full bg-blue-500 rounded" style={{ width: `${(Number(d[valueKey]) / max) * 100}%` }} />
-          </div>
-          <span className="w-8 text-right tabular-nums text-gray-500 dark:text-gray-400">{d[valueKey]}</span>
-        </div>
-      ))}
+      {datos.map(d => {
+        const activo = interactivo && seleccionados.includes(d[labelKey])
+        const Tag = interactivo ? 'button' : 'div'
+        return (
+          <Tag
+            key={d[labelKey]}
+            type={interactivo ? 'button' : undefined}
+            onClick={interactivo ? () => onToggle(d[labelKey]) : undefined}
+            className={`flex items-center gap-2 text-xs w-full ${interactivo ? 'cursor-pointer' : ''} ${hayFiltro && !activo ? 'opacity-40' : ''}`}
+          >
+            <span className={`w-32 shrink-0 text-left truncate ${activo ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'}`} title={d[labelKey]}>{d[labelKey]}</span>
+            <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded h-4 overflow-hidden">
+              <div className={`h-full rounded ${activo ? 'bg-blue-700' : 'bg-blue-500'}`} style={{ width: `${(Number(d[valueKey]) / max) * 100}%` }} />
+            </div>
+            <span className="w-8 text-right tabular-nums text-gray-500 dark:text-gray-400">{d[valueKey]}</span>
+          </Tag>
+        )
+      })}
+    </div>
+  )
+}
+
+// Tabla de conteos (no plata) con filas clickeables para filtro cruzado.
+// filas: [{ label, cantidad, valor }] — valor es lo que se manda a onToggle.
+function ListaClic({ titulo, filas, seleccionados, onToggle }) {
+  const interactivo = typeof onToggle === 'function'
+  const hayFiltro = interactivo && seleccionados.length > 0
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+      <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">{titulo}</h2>
+      {filas.length === 0 ? (
+        <p className="text-sm text-gray-400">Sin datos</p>
+      ) : (
+        <table className="w-full text-sm">
+          <tbody>
+            {filas.map((f, i) => {
+              const activo = interactivo && seleccionados.includes(f.valor)
+              return (
+                <tr
+                  key={i}
+                  onClick={interactivo ? () => onToggle(f.valor) : undefined}
+                  role={interactivo ? 'button' : undefined}
+                  tabIndex={interactivo ? 0 : undefined}
+                  onKeyDown={interactivo ? e => { if (e.key === 'Enter' || e.key === ' ') onToggle(f.valor) } : undefined}
+                  className={`border-t border-gray-100 dark:border-gray-800 first:border-t-0 ${interactivo ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700' : ''} ${hayFiltro && !activo ? 'opacity-40' : ''}`}
+                >
+                  <td className={`py-2 ${activo ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300'}`}>{f.label}</td>
+                  <td className="py-2 text-right font-medium text-gray-900 dark:text-gray-100 tabular-nums">{f.cantidad}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
     </div>
   )
 }
@@ -373,6 +433,12 @@ function PanelTecnicos({ mes }) {
 function GestionOt({ mes }) {
   const [creadores, setCreadores] = useState([])
   const [filtroCreadores, setFiltroCreadores] = useState([])
+  const [filtroEstados, setFiltroEstados] = useState([])
+  const [filtroCondiciones, setFiltroCondiciones] = useState([])
+  const [filtroTipos, setFiltroTipos] = useState([])
+  const [filtroPrioridades, setFiltroPrioridades] = useState([])
+  const [filtroProveedores, setFiltroProveedores] = useState([])
+  const [filtroMotivos, setFiltroMotivos] = useState([])
   const [datos, setDatos] = useState(null)
   const [error, setError] = useState('')
 
@@ -387,14 +453,32 @@ function GestionOt({ mes }) {
     supabase.rpc('get_gestion_ot', {
       p_mes: mes,
       p_creadores: filtroCreadores.length > 0 ? filtroCreadores : null,
+      p_estados: filtroEstados.length > 0 ? filtroEstados : null,
+      p_condiciones: filtroCondiciones.length > 0 ? filtroCondiciones : null,
+      p_tipos: filtroTipos.length > 0 ? filtroTipos : null,
+      p_prioridades: filtroPrioridades.length > 0 ? filtroPrioridades : null,
+      p_proveedores: filtroProveedores.length > 0 ? filtroProveedores : null,
+      p_motivos: filtroMotivos.length > 0 ? filtroMotivos : null,
     }).then(({ data, error }) => {
       if (error) setError(error.message)
       else if (!data?.ok) setError(data?.msg ?? 'No se pudo cargar el reporte')
       else setDatos(data)
     })
-  }, [mes, filtroCreadores])
+  }, [mes, filtroCreadores, filtroEstados, filtroCondiciones, filtroTipos, filtroPrioridades, filtroProveedores, filtroMotivos])
 
   const nombrePorCreador = Object.fromEntries(creadores.map(c => [c.id, c.nombre]))
+
+  function toggle(valor, arr, setter) {
+    setter(arr.includes(valor) ? arr.filter(v => v !== valor) : [...arr, valor])
+  }
+
+  function limpiarFiltros() {
+    setFiltroCreadores([]); setFiltroEstados([]); setFiltroCondiciones([])
+    setFiltroTipos([]); setFiltroPrioridades([]); setFiltroProveedores([]); setFiltroMotivos([])
+  }
+
+  const hayFiltrosCruzados = filtroEstados.length + filtroCondiciones.length + filtroTipos.length
+    + filtroPrioridades.length + filtroProveedores.length + filtroMotivos.length > 0
 
   function exportar() {
     if (!datos) return
@@ -408,14 +492,20 @@ function GestionOt({ mes }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap gap-3">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap items-center gap-3">
         <MultiSelectFiltro label="Creado por" opciones={creadores.map(c => c.id)} seleccionados={filtroCreadores} onChange={setFiltroCreadores} etiquetas={nombrePorCreador} soloEtiqueta />
+        {hayFiltrosCruzados && (
+          <button onClick={limpiarFiltros} className="text-xs text-blue-600 hover:underline">
+            Limpiar filtros de gráficos y tablas ({filtroEstados.length + filtroCondiciones.length + filtroTipos.length + filtroPrioridades.length + filtroProveedores.length + filtroMotivos.length})
+          </button>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
       {!datos && !error && <p className="text-sm text-gray-400">Cargando…</p>}
       {datos && (
       <>
+      <p className="text-xs text-gray-400 dark:text-gray-500">💡 Tocá cualquier gráfico, barra o fila de una tabla para filtrar el resto del panel.</p>
       <div className="flex items-center justify-between">
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
           <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 tabular-nums">{datos.total_ot}</p>
@@ -432,31 +522,47 @@ function GestionOt({ mes }) {
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Estado de la OT</h2>
-          <Donut datos={datos.por_estado} valueKey="cantidad" labelKey="estado" hueco />
+          <Donut datos={datos.por_estado} valueKey="cantidad" labelKey="estado" hueco
+            seleccionados={filtroEstados} onToggle={v => toggle(v, filtroEstados, setFiltroEstados)} />
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Condición de cierre</h2>
-          <Donut datos={datos.por_condicion_cierre} valueKey="cantidad" labelKey="condicion" />
+          <Donut datos={datos.por_condicion_cierre} valueKey="cantidad" labelKey="condicion"
+            seleccionados={filtroCondiciones} onToggle={v => toggle(v, filtroCondiciones, setFiltroCondiciones)} />
         </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Por tipo de OT</h2>
-          <BarrasHorizontales datos={datos.por_tipo} valueKey="cantidad" labelKey="tipo" />
+          <BarrasHorizontales datos={datos.por_tipo} valueKey="cantidad" labelKey="tipo"
+            seleccionados={filtroTipos} onToggle={v => toggle(v, filtroTipos, setFiltroTipos)} />
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Por prioridad</h2>
-          <BarrasHorizontales datos={datos.por_prioridad} valueKey="cantidad" labelKey="prioridad" />
+          <BarrasHorizontales datos={datos.por_prioridad} valueKey="cantidad" labelKey="prioridad"
+            seleccionados={filtroPrioridades} onToggle={v => toggle(v, filtroPrioridades, setFiltroPrioridades)} />
         </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
-        <TablaReporte titulo="Creado por" filas={datos.por_creador.map(f => ({ ...f, total: f.cantidad }))} columnas={{ etiqueta: f => f.nombre }} />
-        <TablaReporte titulo="Proveedor" filas={datos.por_proveedor.map(f => ({ ...f, total: f.cantidad }))} columnas={{ etiqueta: f => f.proveedor }} />
+        <ListaClic
+          titulo="Creado por"
+          filas={datos.por_creador.map(f => ({ label: f.nombre, cantidad: f.cantidad, valor: f.id }))}
+          seleccionados={filtroCreadores} onToggle={v => toggle(v, filtroCreadores, setFiltroCreadores)}
+        />
+        <ListaClic
+          titulo="Proveedor"
+          filas={datos.por_proveedor.map(f => ({ label: f.proveedor, cantidad: f.cantidad, valor: f.id }))}
+          seleccionados={filtroProveedores} onToggle={v => toggle(v, filtroProveedores, setFiltroProveedores)}
+        />
       </div>
 
-      <TablaReporte titulo="Motivo de pausa" filas={datos.por_motivo_pausa.map(f => ({ ...f, total: f.cantidad }))} columnas={{ etiqueta: f => f.motivo }} />
+      <ListaClic
+        titulo="Motivo de pausa"
+        filas={datos.por_motivo_pausa.map(f => ({ label: f.motivo, cantidad: f.cantidad, valor: f.motivo }))}
+        seleccionados={filtroMotivos} onToggle={v => toggle(v, filtroMotivos, setFiltroMotivos)}
+      />
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 px-5 pt-4">Detalle</h2>
