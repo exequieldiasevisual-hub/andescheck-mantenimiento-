@@ -28,6 +28,7 @@ const SECCIONES = [
       { key: 'ot', label: 'Órdenes de Trabajo' },
       { key: 'novedades', label: 'Novedades' },
       { key: 'combustible', label: 'Combustible' },
+      { key: 'checklists', label: 'Checklists' },
       { key: 'rutinas', label: 'Rutinas de Mantenimiento' },
     ],
   },

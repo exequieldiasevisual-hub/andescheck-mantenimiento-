@@ -14,6 +14,7 @@ import Stock from './pages/Stock'
 import Herramientas from './pages/Herramientas'
 import Novedades from './pages/Novedades'
 import Combustible from './pages/Combustible'
+import Checklists from './pages/Checklists'
 import RutinasMantenimiento from './pages/RutinasMantenimiento'
 import Proveedores from './pages/Proveedores'
 import Secuencias from './pages/Secuencias'
@@ -30,6 +31,7 @@ const TITULOS = {
   ot: 'Órdenes de Trabajo',
   novedades: 'Novedades',
   combustible: 'Combustible',
+  checklists: 'Checklists',
   rutinas: 'Rutinas de Mantenimiento',
   stock: 'Stock',
   herramientas: 'Herramientas',
@@ -88,6 +90,7 @@ export default function App() {
     if (paginaEfectiva === 'herramientas') return <Herramientas usuario={usuario} />
   if (paginaEfectiva === 'novedades') return <Novedades usuario={usuario} abrirOt={abrirOtDesdeNovedad} />
     if (paginaEfectiva === 'combustible') return <Combustible usuario={usuario} />
+    if (paginaEfectiva === 'checklists') return <Checklists usuario={usuario} />
     if (paginaEfectiva === 'rutinas') return <RutinasMantenimiento usuario={usuario} abrirOt={abrirOtDesdeNovedad} />
     if (paginaEfectiva === 'proveedores') return <Proveedores usuario={usuario} />
     if (paginaEfectiva === 'secuencias') return <Secuencias usuario={usuario} />
