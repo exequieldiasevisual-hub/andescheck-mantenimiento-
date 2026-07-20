@@ -6,6 +6,58 @@ function money(v) {
   return `$${Number(v || 0).toLocaleString('es-AR')}`
 }
 
+const COLORES = ['#3b82f6', '#f97316', '#8b5cf6', '#22c55e', '#ef4444', '#06b6d4', '#eab308', '#ec4899', '#14b8a6', '#6366f1', '#84cc16', '#f43f5e']
+
+function Donut({ datos, valueKey, labelKey, hueco = false }) {
+  const total = datos.reduce((s, d) => s + Number(d[valueKey] || 0), 0)
+  let acc = 0
+  const stops = datos.map((d, i) => {
+    const pct = total > 0 ? (Number(d[valueKey]) / total) * 100 : 0
+    const desde = acc
+    acc += pct
+    return `${COLORES[i % COLORES.length]} ${desde}% ${acc}%`
+  }).join(', ')
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative w-32 h-32 shrink-0">
+        <div className="w-32 h-32 rounded-full" style={{ background: total > 0 ? `conic-gradient(${stops})` : '#e5e7eb' }} />
+        {hueco && <div className="absolute inset-[22%] rounded-full bg-white dark:bg-gray-800" />}
+      </div>
+      <div className="space-y-1 text-xs min-w-0">
+        {datos.length === 0 && <p className="text-gray-400">Sin datos</p>}
+        {datos.map((d, i) => (
+          <div key={d[labelKey]} className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORES[i % COLORES.length] }} />
+            <span className="text-gray-600 dark:text-gray-400 truncate">{d[labelKey]}</span>
+            <span className="text-gray-400 ml-auto tabular-nums shrink-0">
+              {total > 0 ? Math.round((Number(d[valueKey]) / total) * 100) : 0}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function BarrasHorizontales({ datos, valueKey, labelKey }) {
+  const max = Math.max(1, ...datos.map(d => Number(d[valueKey] || 0)))
+  return (
+    <div className="space-y-2">
+      {datos.length === 0 && <p className="text-gray-400 text-xs">Sin datos</p>}
+      {datos.map(d => (
+        <div key={d[labelKey]} className="flex items-center gap-2 text-xs">
+          <span className="w-32 shrink-0 text-gray-600 dark:text-gray-400 truncate" title={d[labelKey]}>{d[labelKey]}</span>
+          <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded h-4 overflow-hidden">
+            <div className="h-full bg-blue-500 rounded" style={{ width: `${(Number(d[valueKey]) / max) * 100}%` }} />
+          </div>
+          <span className="w-8 text-right tabular-nums text-gray-500 dark:text-gray-400">{d[valueKey]}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function TablaReporte({ titulo, filas, columnas }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
@@ -181,6 +233,144 @@ function ReporteTecnicos({ mes }) {
   )
 }
 
+function PanelTecnicos({ mes }) {
+  const [tecnicos, setTecnicos] = useState([])
+  const [centros, setCentros] = useState([])
+  const [ciudades, setCiudades] = useState([])
+  const [filtroTecnico, setFiltroTecnico] = useState('')
+  const [filtroCentro, setFiltroCentro] = useState('')
+  const [filtroCiudad, setFiltroCiudad] = useState('')
+  const [datos, setDatos] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    supabase.from('usuarios').select('id, nombre').eq('rol', 'tecnico').eq('activo', true).order('nombre')
+      .then(({ data }) => setTecnicos(data || []))
+    supabase.from('unidades').select('centro_costo, ciudad').eq('activo', true)
+      .then(({ data }) => {
+        setCentros([...new Set((data || []).map(u => u.centro_costo).filter(Boolean))].sort())
+        setCiudades([...new Set((data || []).map(u => u.ciudad).filter(Boolean))].sort())
+      })
+  }, [])
+
+  useEffect(() => {
+    setDatos(null)
+    setError('')
+    supabase.rpc('get_panel_tecnicos', {
+      p_mes: mes,
+      p_tecnico: filtroTecnico || null,
+      p_centro_costo: filtroCentro || null,
+      p_ciudad: filtroCiudad || null,
+    }).then(({ data, error }) => {
+      if (error) setError(error.message)
+      else if (!data?.ok) setError(data?.msg ?? 'No se pudo cargar el panel')
+      else setDatos(data)
+    })
+  }, [mes, filtroTecnico, filtroCentro, filtroCiudad])
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap gap-3">
+        <select aria-label="Filtrar por técnico" value={filtroTecnico} onChange={e => setFiltroTecnico(e.target.value)}
+          className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Todos los técnicos</option>
+          {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+        </select>
+        <select aria-label="Filtrar por centro de costo" value={filtroCentro} onChange={e => setFiltroCentro(e.target.value)}
+          className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Todos los centros de costo</option>
+          {centros.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select aria-label="Filtrar por ciudad" value={filtroCiudad} onChange={e => setFiltroCiudad(e.target.value)}
+          className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Todas las ciudades</option>
+          {ciudades.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {!datos && !error && <p className="text-sm text-gray-400">Cargando…</p>}
+
+      {datos && (
+        <>
+          <div className="grid lg:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+              <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Técnico — tareas completadas</h2>
+              <div className="max-h-72 overflow-y-auto">
+                {datos.tecnicos.length === 0 ? <p className="text-sm text-gray-400">Sin datos</p> : (
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {datos.tecnicos.map(t => (
+                        <tr key={t.id} className="border-t border-gray-100 dark:border-gray-800 first:border-t-0">
+                          <td className="py-2 text-gray-700 dark:text-gray-300">{t.nombre}</td>
+                          <td className="py-2 text-right font-medium text-gray-900 dark:text-gray-100 tabular-nums">{t.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+              <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Eficiencia (horas reales vs. estimadas)</h2>
+              <Donut datos={datos.por_eficiencia} valueKey="cantidad" labelKey="label" />
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+              <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Por tipo de OT</h2>
+              <Donut datos={datos.por_tipo_ot} valueKey="cantidad" labelKey="tipo" hueco />
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+              <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Por tipo de unidad</h2>
+              <BarrasHorizontales datos={datos.por_tipo_unidad} valueKey="cantidad" labelKey="tipo_unidad" />
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Por sistema</h2>
+            <Donut datos={datos.por_sistema} valueKey="cantidad" labelKey="sistema" />
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 px-5 pt-4">Detalle</h2>
+            {datos.detalle.length === 0 ? (
+              <p className="px-5 py-8 text-sm text-gray-400 text-center">Sin datos</p>
+            ) : (
+              <div className="overflow-x-auto mt-2 max-h-96 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-900">
+                    <tr className="text-xs text-gray-400 dark:text-gray-500 font-medium">
+                      <th className="px-5 py-3 text-left">Técnico</th>
+                      <th className="px-5 py-3 text-left">Tipo unidad</th>
+                      <th className="px-5 py-3 text-left">Trabajo</th>
+                      <th className="px-5 py-3 text-left">Sistema</th>
+                      <th className="px-5 py-3 text-right">Hs. reales</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {datos.detalle.map((d, i) => (
+                      <tr key={i} className="border-t border-gray-100 dark:border-gray-800">
+                        <td className="px-5 py-3 text-gray-900 dark:text-gray-100 font-medium">{d.tecnico}</td>
+                        <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{d.tipo_unidad}</td>
+                        <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{d.trabajo}</td>
+                        <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{d.sistema}</td>
+                        <td className="px-5 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{d.horas_reales ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function Reportes() {
   const [mes, setMes] = useState(new Date().toISOString().slice(0, 7))
   const [tab, setTab] = useState('costos')
@@ -214,10 +404,20 @@ export default function Reportes() {
         >
           Técnicos
         </button>
+        <button
+          onClick={() => setTab('panel')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === 'panel' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+          }`}
+        >
+          Panel
+        </button>
       </div>
 
       <div className="p-6">
-        {tab === 'costos' ? <ReporteCostos mes={mes} /> : <ReporteTecnicos mes={mes} />}
+        {tab === 'costos' && <ReporteCostos mes={mes} />}
+        {tab === 'tecnicos' && <ReporteTecnicos mes={mes} />}
+        {tab === 'panel' && <PanelTecnicos mes={mes} />}
       </div>
     </div>
   )
