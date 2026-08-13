@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Sun, Moon, Menu, X } from 'lucide-react'
+import { Sun, Moon, Menu, X, Camera } from 'lucide-react'
 import { logout } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { useTema } from '../lib/useTema'
 import logoAndesCheck from '../assets/andescheck-logo.svg'
 import BuscadorUnidad from './BuscadorUnidad'
+import EscanearPatenteModal from './EscanearPatenteModal'
 
 const SECCIONES = [
   {
@@ -63,6 +64,7 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
   const [seccionesManual, setSeccionesManual] = useState({})
   const [usarSecuencias, setUsarSecuencias] = useState(false)
   const [abiertoMobile, setAbiertoMobile] = useState(false)
+  const [escanerAbierto, setEscanerAbierto] = useState(false)
   const esTecnico = usuario?.rol === 'tecnico'
   const esSuperAdmin = usuario?.rol === 'super_admin'
   // "Plataforma" (Panel de Empresas) solo la ve el super_admin — el resto
@@ -131,14 +133,33 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
           </button>
         </div>
         {!esTecnico && (
-          <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-            <BuscadorUnidad
-              unidades={unidades}
-              value={''}
-              onChange={irAActivo}
-              placeholder="🔍 Buscar patente…"
-            />
+          <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center gap-1.5">
+            <div className="flex-1 min-w-0">
+              <BuscadorUnidad
+                unidades={unidades}
+                value={''}
+                onChange={irAActivo}
+                placeholder="🔍 Buscar patente…"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setEscanerAbierto(true)}
+              title="Buscar por patente con la cámara"
+              aria-label="Buscar por patente con la cámara"
+              className="shrink-0 p-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              <Camera size={16} />
+            </button>
           </div>
+        )}
+
+        {escanerAbierto && (
+          <EscanearPatenteModal
+            unidades={unidades}
+            onClose={() => setEscanerAbierto(false)}
+            onAbrirFicha={id => { setEscanerAbierto(false); irAActivo(id) }}
+          />
         )}
         <nav className="flex-1 overflow-y-auto py-2">
           {secciones.map(seccion => {
