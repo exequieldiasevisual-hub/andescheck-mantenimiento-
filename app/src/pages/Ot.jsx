@@ -71,7 +71,7 @@ export default function Ot({ usuario, abrirDetalle, filtroUnidadInicial }) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('abiertas')
   const [filtroTipo, setFiltroTipo] = useState([])
-  const [filtroUnidad, setFiltroUnidad] = useState(filtroUnidadInicial || '')
+  const [filtroUnidad, setFiltroUnidad] = useState(filtroUnidadInicial ? [filtroUnidadInicial] : [])
   const [filtroCentroCosto, setFiltroCentroCosto] = useState([])
   const [filtroTipoUnidad, setFiltroTipoUnidad] = useState([])
   const [filtroCiudad, setFiltroCiudad] = useState([])
@@ -142,7 +142,7 @@ export default function Ot({ usuario, abrirDetalle, filtroUnidadInicial }) {
       return o.estado === filtroEstado
     })
     .filter(o => filtroTipo.length === 0 || filtroTipo.includes(o.tipo))
-    .filter(o => !filtroUnidad || o.id_unidad === filtroUnidad)
+    .filter(o => filtroUnidad.length === 0 || filtroUnidad.includes(o.id_unidad))
     .filter(o => filtroCentroCosto.length === 0 || filtroCentroCosto.includes(o.unidad_centro_costo))
     .filter(o => filtroTipoUnidad.length === 0 || filtroTipoUnidad.includes(o.unidad_tipo))
     .filter(o => filtroCiudad.length === 0 || filtroCiudad.includes(o.unidad_ciudad))
@@ -206,15 +206,14 @@ export default function Ot({ usuario, abrirDetalle, filtroUnidadInicial }) {
                 <option value="todas">Todas</option>
               </select>
               <MultiSelectFiltro label="Tipo" opciones={TIPOS_OT} seleccionados={filtroTipo} onChange={setFiltroTipo} />
-              <select
-                aria-label="Filtrar por unidad"
-                value={filtroUnidad}
-                onChange={e => setFiltroUnidad(e.target.value)}
-                className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Todas las unidades</option>
-                {unidades.map(u => <option key={u.id} value={u.id}>{[u.patente_serie, u.descripcion].filter(Boolean).join(' — ')}</option>)}
-              </select>
+              <MultiSelectFiltro
+                label="Unidad"
+                opciones={unidades.map(u => u.id)}
+                seleccionados={filtroUnidad}
+                onChange={setFiltroUnidad}
+                etiquetas={Object.fromEntries(unidades.map(u => [u.id, [u.patente_serie, u.descripcion].filter(Boolean).join(' — ')]))}
+                soloEtiqueta
+              />
               <MultiSelectFiltro label="Centro de costo" opciones={centrosCosto} seleccionados={filtroCentroCosto} onChange={setFiltroCentroCosto} etiquetas={etiquetasConfig.centros_costo} />
               <MultiSelectFiltro label="Tipo de unidad" opciones={tiposUnidad} seleccionados={filtroTipoUnidad} onChange={setFiltroTipoUnidad} etiquetas={etiquetasConfig.tipos_unidad} />
               <MultiSelectFiltro label="Ciudad" opciones={ciudades} seleccionados={filtroCiudad} onChange={setFiltroCiudad} etiquetas={etiquetasConfig.ciudades} />
