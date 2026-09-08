@@ -58,14 +58,18 @@ export default async function handler(req, res) {
     }),
   })
 
+  const visionData = await visionRes.json().catch(() => null)
+
   if (!visionRes.ok) {
-    res.status(502).json({ ok: false, msg: 'No se pudo leer la foto — probá de nuevo' })
+    const detalle = visionData?.error?.message || `HTTP ${visionRes.status}`
+    console.error('Vision API error:', visionRes.status, JSON.stringify(visionData))
+    res.status(502).json({ ok: false, msg: `No se pudo leer la foto (${detalle})` })
     return
   }
 
-  const visionData = await visionRes.json()
-  const respuesta = visionData.responses?.[0]
+  const respuesta = visionData?.responses?.[0]
   if (respuesta?.error) {
+    console.error('Vision API respuesta.error:', JSON.stringify(respuesta.error))
     res.status(502).json({ ok: false, msg: respuesta.error.message || 'No se pudo leer la foto' })
     return
   }
