@@ -681,7 +681,7 @@ function HistorialPlanModal({ plan, onClose }) {
   )
 }
 
-export default function RutinasMantenimiento({ usuario, abrirOt }) {
+export default function RutinasMantenimiento({ usuario, abrirOt, filtroUnidadTextoInicial }) {
   const [items, setItems] = useState([])
   const [unidades, setUnidades] = useState([])
   const [programadas, setProgramadas] = useState({})
@@ -692,7 +692,7 @@ export default function RutinasMantenimiento({ usuario, abrirOt }) {
   const [otAbiertaParaCumplir, setOtAbiertaParaCumplir] = useState(null)
   const [rutinaPausar, setRutinaPausar] = useState(null)
   const [resultadoAlta, setResultadoAlta] = useState(null)
-  const [busqueda, setBusqueda] = useState('')
+  const [busqueda, setBusqueda] = useState(filtroUnidadTextoInicial || '')
   const [filtroEstado, setFiltroEstado] = useState([])
   const [filtroCentro, setFiltroCentro] = useState([])
   const [etiquetasCentro, setEtiquetasCentro] = useState({})

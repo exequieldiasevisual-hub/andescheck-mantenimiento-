@@ -58,7 +58,7 @@ function OtCard({ ot, puedeGestionar, abrirDetalle, onAnular }) {
   )
 }
 
-export default function Ot({ usuario, abrirDetalle }) {
+export default function Ot({ usuario, abrirDetalle, filtroUnidadInicial }) {
   const [ots, setOts] = useState([])
   const [unidades, setUnidades] = useState([])
   const [secuencias, setSecuencias] = useState([])
@@ -71,7 +71,7 @@ export default function Ot({ usuario, abrirDetalle }) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('abiertas')
   const [filtroTipo, setFiltroTipo] = useState([])
-  const [filtroUnidad, setFiltroUnidad] = useState('')
+  const [filtroUnidad, setFiltroUnidad] = useState(filtroUnidadInicial || '')
   const [filtroCentroCosto, setFiltroCentroCosto] = useState([])
   const [filtroTipoUnidad, setFiltroTipoUnidad] = useState([])
   const [filtroCiudad, setFiltroCiudad] = useState([])

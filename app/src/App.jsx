@@ -51,6 +51,8 @@ export default function App() {
   const [otSeleccionada, setOtSeleccionada] = useState(null)
   const [activoSeleccionado, setActivoSeleccionado] = useState(null)
   const [filtroSaludInicial, setFiltroSaludInicial] = useState(null)
+  const [filtroUnidadInicial, setFiltroUnidadInicial] = useState(null)
+  const [filtroUnidadTextoInicial, setFiltroUnidadTextoInicial] = useState(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -82,26 +84,26 @@ export default function App() {
     if (paginaEfectiva === 'dashboard') return <Dashboard abrirOt={abrirOtDesdeNovedad} navegarA={navegarA} />
     if (paginaEfectiva === 'unidades') {
       return activoSeleccionado
-        ? <ActivoDetalle idUnidad={activoSeleccionado} usuario={usuario} volver={() => setActivoSeleccionado(null)} abrirOt={abrirOtDesdeNovedad} />
+        ? <ActivoDetalle idUnidad={activoSeleccionado} usuario={usuario} volver={() => setActivoSeleccionado(null)} abrirOt={abrirOtDesdeNovedad} navegarA={navegarA} />
         : <Unidades usuario={usuario} abrirFicha={setActivoSeleccionado} filtroSaludInicial={filtroSaludInicial} />
     }
     if (paginaEfectiva === 'componentes') return <Componentes usuario={usuario} />
     if (paginaEfectiva === 'stock') return <Stock usuario={usuario} />
     if (paginaEfectiva === 'herramientas') return <Herramientas usuario={usuario} />
-  if (paginaEfectiva === 'novedades') return <Novedades usuario={usuario} abrirOt={abrirOtDesdeNovedad} />
+  if (paginaEfectiva === 'novedades') return <Novedades usuario={usuario} abrirOt={abrirOtDesdeNovedad} filtroUnidadInicial={filtroUnidadInicial} />
     if (paginaEfectiva === 'combustible') return <Combustible usuario={usuario} />
     if (paginaEfectiva === 'checklists') return <Checklists usuario={usuario} />
-    if (paginaEfectiva === 'rutinas') return <RutinasMantenimiento usuario={usuario} abrirOt={abrirOtDesdeNovedad} />
+    if (paginaEfectiva === 'rutinas') return <RutinasMantenimiento usuario={usuario} abrirOt={abrirOtDesdeNovedad} filtroUnidadTextoInicial={filtroUnidadTextoInicial} />
     if (paginaEfectiva === 'proveedores') return <Proveedores usuario={usuario} />
     if (paginaEfectiva === 'secuencias') return <Secuencias usuario={usuario} />
-    if (paginaEfectiva === 'documentos') return <Documentos usuario={usuario} />
+    if (paginaEfectiva === 'documentos') return <Documentos usuario={usuario} filtroUnidadInicial={filtroUnidadInicial} />
     if (paginaEfectiva === 'reportes') return <Reportes />
     if (paginaEfectiva === 'configuracion') return <Configuracion usuario={usuario} />
     if (paginaEfectiva === 'usuarios') return <Usuarios usuario={usuario} />
     if (paginaEfectiva === 'ot') {
       return otSeleccionada
         ? <OtDetalle idOt={otSeleccionada} usuario={usuario} volver={() => setOtSeleccionada(null)} />
-        : <Ot usuario={usuario} abrirDetalle={setOtSeleccionada} />
+        : <Ot usuario={usuario} abrirDetalle={setOtSeleccionada} filtroUnidadInicial={filtroUnidadInicial} />
     }
     return <Placeholder titulo={TITULOS[paginaEfectiva] ?? paginaEfectiva} />
   }
@@ -110,6 +112,8 @@ export default function App() {
     setOtSeleccionada(null)
     setActivoSeleccionado(null)
     setFiltroSaludInicial(opciones?.salud ?? null)
+    setFiltroUnidadInicial(opciones?.unidad ?? null)
+    setFiltroUnidadTextoInicial(opciones?.unidadTexto ?? null)
     setPagina(p)
   }
 

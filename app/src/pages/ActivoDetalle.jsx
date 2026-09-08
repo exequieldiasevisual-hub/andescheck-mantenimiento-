@@ -85,12 +85,19 @@ function Card({ title, children }) {
   )
 }
 
-function KpiCard({ valor, etiqueta }) {
+function KpiCard({ valor, etiqueta, onClick }) {
+  const Tag = onClick ? 'button' : 'div'
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left w-full ${
+        onClick ? 'hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-colors cursor-pointer' : ''
+      }`}
+    >
       <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{valor}</p>
       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{etiqueta}</p>
-    </div>
+    </Tag>
   )
 }
 
@@ -415,7 +422,7 @@ function HistorialRutinaModal({ rutina, onClose }) {
   )
 }
 
-export default function ActivoDetalle({ idUnidad, usuario, volver, abrirOt }) {
+export default function ActivoDetalle({ idUnidad, usuario, volver, abrirOt, navegarA }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [unidades, setUnidades] = useState([])
@@ -637,12 +644,12 @@ export default function ActivoDetalle({ idUnidad, usuario, volver, abrirOt }) {
           ) : unidad.hs_actuales ? (
             <KpiCard valor={money(kpis.costo_por_hs)} etiqueta="Costo por hs" />
           ) : null}
-          <KpiCard valor={kpis.ot_abiertas || 0} etiqueta="OT abiertas" />
+          <KpiCard valor={kpis.ot_abiertas || 0} etiqueta="OT abiertas" onClick={() => navegarA('ot', { unidad: unidad.id })} />
           <KpiCard valor={kpis.correctivos_12m || 0} etiqueta="Correctivos (12m)" />
         <KpiCard valor={kpis.dias_prom_resolucion ?? '-'} etiqueta="Días prom. resolución" />
-        <KpiCard valor={kpiRutinas} etiqueta="Rutinas al día" />
-          <KpiCard valor={kpis.docs_vencidos || 0} etiqueta="Docs vencidos" />
-          <KpiCard valor={kpis.novedades_pendientes || 0} etiqueta="Novedades pendientes" />
+        <KpiCard valor={kpiRutinas} etiqueta="Rutinas al día" onClick={() => navegarA('rutinas', { unidadTexto: unidad.patente_serie || unidad.descripcion })} />
+          <KpiCard valor={kpis.docs_vencidos || 0} etiqueta="Docs vencidos" onClick={() => navegarA('documentos', { unidad: unidad.id })} />
+          <KpiCard valor={kpis.novedades_pendientes || 0} etiqueta="Novedades pendientes" onClick={() => navegarA('novedades', { unidad: unidad.id })} />
           <KpiCard valor={paradas?.dias_parada_12m ?? '—'} etiqueta="Días parada (12m)" />
         </div>
 
