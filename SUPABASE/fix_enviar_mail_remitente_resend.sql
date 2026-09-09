@@ -46,7 +46,7 @@ begin
     url := 'https://api.resend.com/emails',
     headers := jsonb_build_object('Authorization', 'Bearer ' || v_resend_key, 'Content-Type', 'application/json'),
     body := jsonb_build_object(
-      'from', 'AndesCheck <onboarding@resend.dev>',
+      'from', 'AndesCheck <noreply@andescheck.com>',
       'to', jsonb_build_array(p_destinatario),
       'subject', 'OT ' || (v_datos->'ot'->>'numero_ot') || ' — ' || coalesce(v_datos->'empresa'->>'razon_social', 'AndesCheck'),
       'html', v_html
