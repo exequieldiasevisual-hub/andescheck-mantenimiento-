@@ -114,6 +114,18 @@ function HistorialEjecucion({ ejecucion }) {
                     <span className="font-medium text-gray-800 dark:text-gray-200">{r.checklist_items?.pregunta}</span>: {r.respuesta}
                   </p>
                 ))}
+                {(ejecucion.fotos_urls?.length > 0 || ejecucion.firma_url) && (
+                  <div className="flex items-center gap-3 pt-2">
+                    {ejecucion.fotos_urls?.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noreferrer">
+                        <img src={url} alt={`Foto ${i + 1}`} className="w-16 h-16 object-cover rounded border border-gray-200 dark:border-gray-700" />
+                      </a>
+                    ))}
+                    {ejecucion.firma_url && (
+                      <a href={ejecucion.firma_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">Ver firma</a>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </td>
@@ -123,7 +135,7 @@ function HistorialEjecucion({ ejecucion }) {
   )
 }
 
-function EjecutarEHistorial() {
+function EjecutarEHistorial({ usuario }) {
   const [unidades, setUnidades] = useState([])
   const [plantillas, setPlantillas] = useState([])
   const [itemsPorPlantilla, setItemsPorPlantilla] = useState({})
@@ -200,6 +212,7 @@ function EjecutarEHistorial() {
           unidades={unidades}
           plantillas={plantillas}
           itemsPorPlantilla={itemsPorPlantilla}
+          empresaId={usuario.empresa_id}
           onClose={() => setModalAbierto(false)}
           onSaved={novedadesGeneradas => {
             setModalAbierto(false)
@@ -247,7 +260,7 @@ export default function Checklists({ usuario }) {
       </div>
 
       <div className="p-6">
-        {tab === 'ejecutar' ? <EjecutarEHistorial /> : <Plantillas usuario={usuario} />}
+        {tab === 'ejecutar' ? <EjecutarEHistorial usuario={usuario} /> : <Plantillas usuario={usuario} />}
       </div>
     </div>
   )
