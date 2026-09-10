@@ -5,27 +5,35 @@ import BuscadorUnidad from './BuscadorUnidad'
 const PATRON_PATENTE = /([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})/
 const ANCHO_RECORTE_OBJETIVO = 640
 
-// Pasa a escala de grises y, si el fondo predomina oscuro (patentes viejas:
-// letras blancas en relieve sobre fondo negro), invierte los colores — el
-// OCR está entrenado para texto oscuro sobre fondo claro y falla mucho si no.
-function preprocesarParaOcr(canvas) {
+function aGrises(canvas) {
   const ctx = canvas.getContext('2d')
   const imagenData = ctx.getImageData(0, 0, canvas.width, canvas.height)
   const d = imagenData.data
-  let suma = 0
   for (let i = 0; i < d.length; i += 4) {
     const gris = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
     d[i] = d[i + 1] = d[i + 2] = gris
-    suma += gris
-  }
-  if (suma / (d.length / 4) < 128) {
-    for (let i = 0; i < d.length; i += 4) {
-      d[i] = 255 - d[i]
-      d[i + 1] = 255 - d[i + 1]
-      d[i + 2] = 255 - d[i + 2]
-    }
   }
   ctx.putImageData(imagenData, 0, 0)
+}
+
+function invertirColores(canvas) {
+  const ctx = canvas.getContext('2d')
+  const imagenData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const d = imagenData.data
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = 255 - d[i]
+    d[i + 1] = 255 - d[i + 1]
+    d[i + 2] = 255 - d[i + 2]
+  }
+  ctx.putImageData(imagenData, 0, 0)
+}
+
+function clonarCanvas(canvas) {
+  const copia = document.createElement('canvas')
+  copia.width = canvas.width
+  copia.height = canvas.height
+  copia.getContext('2d').drawImage(canvas, 0, 0)
+  return copia
 }
 
 function cargarImagen(file) {
@@ -40,7 +48,9 @@ function cargarImagen(file) {
 
 // Recorta la zona de patente elegida y la agranda a un ancho fijo — el
 // resto de la foto (auto, fondo) sobra y solo le resta resolución real a
-// los caracteres que el OCR tiene que leer.
+// los caracteres que el OCR tiene que leer. Devuelve dos versiones (normal
+// e invertida) porque no hay forma confiable de adivinar de antemano si el
+// fondo del recorte es claro u oscuro (logos/texto extra arruinan el promedio).
 function recortarYPreparar(img, rectNatural) {
   const escala = ANCHO_RECORTE_OBJETIVO / rectNatural.width
   const canvas = document.createElement('canvas')
@@ -51,8 +61,10 @@ function recortarYPreparar(img, rectNatural) {
     rectNatural.x, rectNatural.y, rectNatural.width, rectNatural.height,
     0, 0, canvas.width, canvas.height
   )
-  preprocesarParaOcr(canvas)
-  return canvas.toDataURL('image/jpeg', 0.9)
+  aGrises(canvas)
+  const invertido = clonarCanvas(canvas)
+  invertirColores(invertido)
+  return [canvas.toDataURL('image/jpeg', 0.9), invertido.toDataURL('image/jpeg', 0.9)]
 }
 
 const normalizar = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
@@ -60,18 +72,24 @@ const normalizar = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
 // OCR local con Tesseract.js (gratis, corre en el navegador). Google Cloud
 // Vision (más preciso, pago) queda documentado en GOOGLE_VISION_NOTAS.md y
 // en app/api/leer-patente.js para reactivar cuando se resuelva la facturación.
-async function leerPatenteLocal(imagenBase64) {
+// Prueba cada candidato (normal / invertido) hasta que uno matchee el patrón.
+async function leerPatenteLocal(candidatos) {
   const { createWorker } = await import('tesseract.js')
   const worker = await createWorker('eng')
   await worker.setParameters({
     tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
     tessedit_pageseg_mode: '6', // bloque uniforme de texto — mejor para una patente que el modo "página completa"
   })
-  const { data } = await worker.recognize(imagenBase64)
+  let mejorTexto = ''
+  for (const candidato of candidatos) {
+    const { data } = await worker.recognize(candidato)
+    const textoPlano = normalizar(data.text)
+    const match = textoPlano.match(PATRON_PATENTE)
+    if (match) { await worker.terminate(); return { patente: match[1], textoDetectado: data.text } }
+    if ((data.text || '').trim().length > mejorTexto.length) mejorTexto = data.text.trim()
+  }
   await worker.terminate()
-  const textoPlano = normalizar(data.text)
-  const match = textoPlano.match(PATRON_PATENTE)
-  return { patente: match ? match[1] : null, textoDetectado: data.text }
+  return { patente: null, textoDetectado: mejorTexto }
 }
 
 export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }) {
@@ -143,8 +161,8 @@ export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }
         width: seleccion.width * escalaNatural,
         height: seleccion.height * escalaNatural,
       }
-      const imagenBase64 = recortarYPreparar(foto.img, rectNatural)
-      const { patente, textoDetectado } = await leerPatenteLocal(imagenBase64)
+      const candidatos = recortarYPreparar(foto.img, rectNatural)
+      const { patente, textoDetectado } = await leerPatenteLocal(candidatos)
       if (!patente) {
         const preview = textoDetectado?.trim().slice(0, 80)
         setError(preview ? `No se detectó una patente. Texto leído: "${preview}"` : 'No se detectó texto en el recorte — probá marcando justo la patente')
