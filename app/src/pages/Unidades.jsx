@@ -11,7 +11,7 @@ import ConfirmModal from '../components/ConfirmModal'
 const VACIO = {
   descripcion: '', tipo: '', patente_serie: '', marca: '', modelo: '',
   anio: '', centro_costo: '', ciudad: '', tipo_mision: '', km_actuales: '', hs_actuales: '',
-  config_ejes: '', peso_kg: '', capacidad_carga_declarada_kg: '', numero_motor: '',
+  config_ejes: '', peso_kg: '', capacidad_carga_declarada_kg: '', numero_motor: '', numero_chasis: '',
 }
 
 function saludChipClase(salud) {
@@ -95,6 +95,7 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
       peso_kg: form.peso_kg ? Number(form.peso_kg) : null,
       capacidad_carga_declarada_kg: form.capacidad_carga_declarada_kg ? Number(form.capacidad_carga_declarada_kg) : null,
       numero_motor: form.numero_motor || null,
+      numero_chasis: form.numero_chasis || null,
       foto_url,
     }
 
@@ -143,10 +144,17 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">N° de motor</label>
-          <input value={form.numero_motor || ''} onChange={e => setField('numero_motor', e.target.value)}
-            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">N° de motor</label>
+            <input value={form.numero_motor || ''} onChange={e => setField('numero_motor', e.target.value)}
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">N° de chasis</label>
+            <input value={form.numero_chasis || ''} onChange={e => setField('numero_chasis', e.target.value)}
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
