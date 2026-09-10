@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import Modal from '../components/Modal'
 import SelectConfig from '../components/SelectConfig'
 import MultiSelectFiltro from '../components/MultiSelectFiltro'
+import BuscadorUnidad from '../components/BuscadorUnidad'
 import ConfirmModal from '../components/ConfirmModal'
 
 const ESTADO_COLOR = {
@@ -96,11 +97,15 @@ function DocumentoModal({ documento, unidades, empresaId, onClose, onSaved }) {
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Unidad *</label>
-          <select value={form.id_unidad} onChange={e => setField('id_unidad', e.target.value)} disabled={editando}
-            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm disabled:bg-gray-50 dark:disabled:bg-gray-900" required>
-            <option value="">Seleccionar unidad...</option>
-            {unidades.map(u => <option key={u.id} value={u.id}>{[u.patente_serie, u.descripcion].filter(Boolean).join(' — ')}</option>)}
-          </select>
+          {editando ? (
+            <input
+              disabled
+              value={[unidades.find(u => u.id === form.id_unidad)?.patente_serie, unidades.find(u => u.id === form.id_unidad)?.descripcion].filter(Boolean).join(' — ')}
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900"
+            />
+          ) : (
+            <BuscadorUnidad unidades={unidades} value={form.id_unidad} onChange={v => setField('id_unidad', v)} />
+          )}
         </div>
         {editando ? (
           <div>
