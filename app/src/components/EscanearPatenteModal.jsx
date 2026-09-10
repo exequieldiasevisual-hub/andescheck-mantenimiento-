@@ -32,7 +32,7 @@ async function leerPatenteLocal(imagenBase64) {
   const { data } = await Tesseract.recognize(imagenBase64, 'eng')
   const textoPlano = normalizar(data.text)
   const match = textoPlano.match(PATRON_PATENTE)
-  return match ? match[1] : null
+  return { patente: match ? match[1] : null, textoDetectado: data.text }
 }
 
 export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }) {
@@ -51,13 +51,19 @@ export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }
     setError('')
     try {
       const imagenBase64 = await redimensionarImagen(file)
-      const patente = await leerPatenteLocal(imagenBase64)
-      if (!patente) { setError('No se detectó una patente en la foto — probá con más luz o de más cerca'); setEstado('inicial'); return }
+      const { patente, textoDetectado } = await leerPatenteLocal(imagenBase64)
+      if (!patente) {
+        const preview = textoDetectado?.trim().slice(0, 80)
+        setError(preview ? `No se detectó una patente. Texto leído: "${preview}"` : 'No se detectó texto en la foto — probá con más luz o de más cerca')
+        setEstado('inicial')
+        return
+      }
       setPatenteDetectada(patente)
       setUnidadEncontrada(unidades.find(u => normalizar(u.patente_serie) === patente) || null)
       setEstado('resultado')
-    } catch {
-      setError('No se pudo procesar la foto — probá de nuevo')
+    } catch (err) {
+      console.error('Error leyendo patente:', err)
+      setError(`No se pudo procesar la foto (${err?.message || 'error desconocido'})`)
       setEstado('inicial')
     }
   }
