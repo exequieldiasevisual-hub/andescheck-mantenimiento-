@@ -54,7 +54,10 @@ const normalizar = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
 async function leerPatenteLocal(imagenBase64) {
   const { createWorker } = await import('tesseract.js')
   const worker = await createWorker('eng')
-  await worker.setParameters({ tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' })
+  await worker.setParameters({
+    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+    tessedit_pageseg_mode: '6', // bloque uniforme de texto — mejor para una patente que el modo "página completa"
+  })
   const { data } = await worker.recognize(imagenBase64)
   await worker.terminate()
   const textoPlano = normalizar(data.text)
