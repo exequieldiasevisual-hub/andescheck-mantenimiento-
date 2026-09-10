@@ -4,6 +4,29 @@ import BuscadorUnidad from './BuscadorUnidad'
 
 const PATRON_PATENTE = /([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})/
 
+// Pasa a escala de grises y, si el fondo predomina oscuro (patentes viejas:
+// letras blancas en relieve sobre fondo negro), invierte los colores — el
+// OCR está entrenado para texto oscuro sobre fondo claro y falla mucho si no.
+function preprocesarParaOcr(canvas) {
+  const ctx = canvas.getContext('2d')
+  const imagenData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const d = imagenData.data
+  let suma = 0
+  for (let i = 0; i < d.length; i += 4) {
+    const gris = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
+    d[i] = d[i + 1] = d[i + 2] = gris
+    suma += gris
+  }
+  if (suma / (d.length / 4) < 128) {
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = 255 - d[i]
+      d[i + 1] = 255 - d[i + 1]
+      d[i + 2] = 255 - d[i + 2]
+    }
+  }
+  ctx.putImageData(imagenData, 0, 0)
+}
+
 function redimensionarImagen(file, maxAncho = 1280) {
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -14,8 +37,9 @@ function redimensionarImagen(file, maxAncho = 1280) {
       canvas.width = img.width * escala
       canvas.height = img.height * escala
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      preprocesarParaOcr(canvas)
       URL.revokeObjectURL(url)
-      resolve(canvas.toDataURL('image/jpeg', 0.8))
+      resolve(canvas.toDataURL('image/jpeg', 0.9))
     }
     img.onerror = reject
     img.src = url
@@ -28,8 +52,11 @@ const normalizar = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
 // Vision (más preciso, pago) queda documentado en GOOGLE_VISION_NOTAS.md y
 // en app/api/leer-patente.js para reactivar cuando se resuelva la facturación.
 async function leerPatenteLocal(imagenBase64) {
-  const { default: Tesseract } = await import('tesseract.js')
-  const { data } = await Tesseract.recognize(imagenBase64, 'eng')
+  const { createWorker } = await import('tesseract.js')
+  const worker = await createWorker('eng')
+  await worker.setParameters({ tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' })
+  const { data } = await worker.recognize(imagenBase64)
+  await worker.terminate()
   const textoPlano = normalizar(data.text)
   const match = textoPlano.match(PATRON_PATENTE)
   return { patente: match ? match[1] : null, textoDetectado: data.text }
