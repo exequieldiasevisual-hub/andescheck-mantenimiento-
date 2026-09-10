@@ -527,7 +527,7 @@ export default function Configuracion({ usuario }) {
 
   async function cargar() {
     setLoading(true)
-    const { data } = await supabase.from('configuracion').select('*').order('seccion').order('clave')
+    const { data } = await supabase.from('configuracion').select('*').order('creado_en', { ascending: false })
     setItems(data || [])
     setLoading(false)
   }
