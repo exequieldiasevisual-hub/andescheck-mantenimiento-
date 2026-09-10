@@ -29,6 +29,7 @@ export default function NovedadModal({ unidades, usuario, onClose, onSaved }) {
     e.preventDefault()
     if (!form.id_unidad) { setError('La unidad es obligatoria'); return }
     if (!form.descripcion.trim()) { setError('La descripción es obligatoria'); return }
+    if (online && !foto) { setError('La foto es obligatoria'); return }
     setSaving(true)
     setError('')
 
@@ -89,16 +90,19 @@ export default function NovedadModal({ unidades, usuario, onClose, onSaved }) {
           <textarea value={form.descripcion} onChange={e => setField('descripcion', e.target.value)}
             className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" rows={3} required />
         </div>
-        <label className="flex items-center gap-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 w-fit">
-          📷 {foto ? foto.name : 'Adjuntar foto (opcional)'}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={e => setFoto(e.target.files[0] ?? null)}
-            className="hidden"
-          />
-        </label>
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Foto {online && '*'}</label>
+          <label className="flex items-center gap-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 w-fit">
+            📷 {foto ? foto.name : online ? 'Adjuntar foto' : 'Adjuntar foto (no se guardará sin conexión)'}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={e => setFoto(e.target.files[0] ?? null)}
+              className="hidden"
+            />
+          </label>
+        </div>
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
