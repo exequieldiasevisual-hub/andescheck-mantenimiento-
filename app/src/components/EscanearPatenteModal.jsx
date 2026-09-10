@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useState, useRef, useEffect } from 'react'
 import Modal from './Modal'
 import BuscadorUnidad from './BuscadorUnidad'
+
+const PATRON_PATENTE = /([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})/
 
 function redimensionarImagen(file, maxAncho = 1280) {
   return new Promise((resolve, reject) => {
@@ -23,31 +24,40 @@ function redimensionarImagen(file, maxAncho = 1280) {
 
 const normalizar = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
 
+// OCR local con Tesseract.js (gratis, corre en el navegador). Google Cloud
+// Vision (más preciso, pago) queda documentado en GOOGLE_VISION_NOTAS.md y
+// en app/api/leer-patente.js para reactivar cuando se resuelva la facturación.
+async function leerPatenteLocal(imagenBase64) {
+  const { default: Tesseract } = await import('tesseract.js')
+  const { data } = await Tesseract.recognize(imagenBase64, 'eng')
+  const textoPlano = normalizar(data.text)
+  const match = textoPlano.match(PATRON_PATENTE)
+  return match ? match[1] : null
+}
+
 export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }) {
   const [estado, setEstado] = useState('inicial') // inicial | procesando | resultado
   const [patenteDetectada, setPatenteDetectada] = useState('')
   const [unidadEncontrada, setUnidadEncontrada] = useState(null)
   const [error, setError] = useState('')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (estado === 'inicial') inputRef.current?.click()
+  }, [estado])
 
   async function procesarFoto(file) {
     setEstado('procesando')
     setError('')
     try {
       const imagenBase64 = await redimensionarImagen(file)
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/leer-patente', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
-        body: JSON.stringify({ imagenBase64 }),
-      })
-      const data = await res.json()
-      if (!data.ok) { setError(data.msg || 'No se pudo leer la foto'); setEstado('inicial'); return }
-      if (!data.patente) { setError('No se detectó una patente en la foto — probá con más luz o de más cerca'); setEstado('inicial'); return }
-      setPatenteDetectada(data.patente)
-      setUnidadEncontrada(unidades.find(u => normalizar(u.patente_serie) === data.patente) || null)
+      const patente = await leerPatenteLocal(imagenBase64)
+      if (!patente) { setError('No se detectó una patente en la foto — probá con más luz o de más cerca'); setEstado('inicial'); return }
+      setPatenteDetectada(patente)
+      setUnidadEncontrada(unidades.find(u => normalizar(u.patente_serie) === patente) || null)
       setEstado('resultado')
     } catch {
-      setError('No se pudo procesar la foto — revisá tu conexión')
+      setError('No se pudo procesar la foto — probá de nuevo')
       setEstado('inicial')
     }
   }
@@ -60,6 +70,7 @@ export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }
             <span className="text-2xl">📷</span>
             <span className="text-sm">Tocá para sacar la foto de la patente</span>
             <input
+              ref={inputRef}
               type="file" accept="image/*" capture="environment" className="hidden"
               onChange={e => e.target.files[0] && procesarFoto(e.target.files[0])}
             />
