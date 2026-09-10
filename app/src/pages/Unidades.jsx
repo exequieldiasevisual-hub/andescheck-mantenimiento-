@@ -11,6 +11,7 @@ import ConfirmModal from '../components/ConfirmModal'
 const VACIO = {
   descripcion: '', tipo: '', patente_serie: '', marca: '', modelo: '',
   anio: '', centro_costo: '', ciudad: '', tipo_mision: '', km_actuales: '', hs_actuales: '',
+  config_ejes: '', peso_kg: '', capacidad_carga_declarada_kg: '',
 }
 
 function saludChipClase(salud) {
@@ -54,6 +55,7 @@ function HistorialKmHsModal({ unidad, onClose }) {
 
 function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
   const [form, setForm] = useState(unidad || VACIO)
+  const [foto, setFoto] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -66,6 +68,14 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
     if (form.anio && Number(form.anio) > anioMaximo) { setError(`El año modelo no puede ser mayor a ${anioMaximo}`); return }
     setSaving(true)
     setError('')
+
+    let foto_url = form.foto_url ?? null
+    if (foto) {
+      const path = `${empresaId}/unidades/${Date.now()}-${foto.name}`
+      const { error: upErr } = await supabase.storage.from('ot-fotos').upload(path, foto)
+      if (upErr) { setSaving(false); setError(upErr.message); return }
+      foto_url = supabase.storage.from('ot-fotos').getPublicUrl(path).data.publicUrl
+    }
 
     const payload = {
       empresa_id: empresaId,
@@ -81,6 +91,10 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
       km_actuales: form.km_actuales ? Number(form.km_actuales) : null,
       hs_actuales: form.hs_actuales ? Number(form.hs_actuales) : null,
       capacidad_tanque_litros: form.capacidad_tanque_litros ? Number(form.capacidad_tanque_litros) : null,
+      config_ejes: form.config_ejes || null,
+      peso_kg: form.peso_kg ? Number(form.peso_kg) : null,
+      capacidad_carga_declarada_kg: form.capacidad_carga_declarada_kg ? Number(form.capacidad_carga_declarada_kg) : null,
+      foto_url,
     }
 
     const query = unidad?.id
@@ -160,6 +174,34 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
           <input type="number" value={form.capacidad_tanque_litros || ''} onChange={e => setField('capacidad_tanque_litros', e.target.value)}
             className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Opcional — habilita la alerta de carga imposible" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Configuración de ejes</label>
+            <input value={form.config_ejes || ''} onChange={e => setField('config_ejes', e.target.value)}
+              placeholder="Ej: 4x2, Tridem"
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Peso (kg)</label>
+            <input type="number" value={form.peso_kg || ''} onChange={e => setField('peso_kg', e.target.value)}
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Capacidad de carga declarada (kg)</label>
+          <input type="number" value={form.capacidad_carga_declarada_kg || ''} onChange={e => setField('capacidad_carga_declarada_kg', e.target.value)}
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Foto de la unidad</label>
+          <label className="flex items-center gap-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 w-fit">
+            📷 {foto ? foto.name : form.foto_url ? 'Cambiar foto' : 'Adjuntar foto (opcional)'}
+            <input type="file" accept="image/*" capture="environment" onChange={e => setFoto(e.target.files[0] ?? null)} className="hidden" />
+          </label>
         </div>
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
