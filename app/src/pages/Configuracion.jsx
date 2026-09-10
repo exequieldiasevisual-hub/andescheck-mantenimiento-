@@ -575,6 +575,7 @@ export default function Configuracion({ usuario }) {
             <TablaSimple titulo="Tipos de Novedad" columna="Descripción" seccion="tipos_novedad" empresaId={usuario.empresa_id} filas={porSeccion('tipos_novedad')} onChange={cargar} />
             <TablaSimple titulo="Motivos de Pausa" columna="Motivo" seccion="motivos_pausa" empresaId={usuario.empresa_id} filas={porSeccion('motivos_pausa')} onChange={cargar} />
             <TablaSimple titulo="Tipos de Documento (Unidades)" columna="Tipo de documento" seccion="tipos_documento" empresaId={usuario.empresa_id} filas={porSeccion('tipos_documento')} onChange={cargar} />
+            <TablaSimple titulo="Destinatarios de mail — Checklists" columna="Email" seccion="checklist_destinatarios_mail" empresaId={usuario.empresa_id} filas={porSeccion('checklist_destinatarios_mail')} onChange={cargar} />
             <AlertasDocumentos
               empresaId={usuario.empresa_id}
               tiposDocumento={porSeccion('tipos_documento').map(f => f.clave)}

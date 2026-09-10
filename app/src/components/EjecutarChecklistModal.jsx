@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useOnline, encolarRpc } from '../lib/offline'
+import { enviarChecklistMail } from '../lib/enviarChecklistMail'
 import Modal from './Modal'
+import ConfirmModal from './ConfirmModal'
 import BuscadorUnidad from './BuscadorUnidad'
 
 function capturarUbicacion() {
@@ -20,7 +22,7 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
   const [idPlantilla, setIdPlantilla] = useState('')
   const [respuestas, setRespuestas] = useState({})
   const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [confirmando, setConfirmando] = useState(false)
   const online = useOnline()
 
   const unidadSeleccionada = unidades.find(u => u.id === idUnidad)
@@ -30,16 +32,17 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
   function elegirPlantilla(id) { setIdPlantilla(id); setRespuestas({}) }
   function setRespuesta(idItem, valor) { setRespuestas(r => ({ ...r, [idItem]: valor })) }
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault()
     if (!idUnidad) { setError('La unidad es obligatoria'); return }
     if (!idPlantilla) { setError('Elegí una plantilla'); return }
     const faltantes = items.filter(i => !respuestas[i.id]?.trim())
     if (faltantes.length > 0) { setError('Faltan responder ' + faltantes.length + ' ítem(s)'); return }
-
-    setSaving(true)
     setError('')
+    setConfirmando(true)
+  }
 
+  async function guardar() {
     const ubicacion_url = await capturarUbicacion()
     const args = {
       p_id_plantilla: idPlantilla,
@@ -50,16 +53,15 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
 
     if (!online) {
       encolarRpc('ejecutar_checklist', args, `Checklist: ${unidadSeleccionada?.descripcion ?? ''}`)
-      setSaving(false)
       onSaved(null)
       return
     }
 
-    const { data, error } = await supabase.rpc('ejecutar_checklist', args)
+    const { data, error: errRpc } = await supabase.rpc('ejecutar_checklist', args)
+    if (errRpc) throw errRpc
+    if (!data?.ok) throw new Error(data?.msg ?? 'No se pudo guardar el checklist')
 
-    setSaving(false)
-    if (error) { setError(error.message); return }
-    if (!data?.ok) { setError(data?.msg ?? 'No se pudo guardar el checklist'); return }
+    enviarChecklistMail(supabase, data.id_ejecucion)
     onSaved(data.novedades_generadas)
   }
 
@@ -117,11 +119,24 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
             Cancelar
           </button>
-          <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50">
-            {saving ? 'Guardando…' : 'Guardar checklist'}
+          <button type="submit" className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+            Guardar checklist
           </button>
         </div>
       </form>
+
+      {confirmando && (
+        <ConfirmModal
+          titulo="Confirmar checklist"
+          mensaje={online
+            ? '¿Estás seguro? Se va a guardar el checklist y enviarlo por mail automáticamente a los destinatarios configurados.'
+            : '¿Estás seguro? Sin conexión el checklist se guarda localmente y se sincroniza solo — el mail se envía recién en ese momento.'}
+          textoBoton="Confirmar y guardar"
+          peligro={false}
+          onConfirm={guardar}
+          onClose={() => setConfirmando(false)}
+        />
+      )}
     </Modal>
   )
 }

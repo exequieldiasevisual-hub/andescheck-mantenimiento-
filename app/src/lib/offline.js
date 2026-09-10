@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { enviarChecklistMail } from './enviarChecklistMail'
 
 const QUEUE_KEY = 'andescheck_offline_queue'
 const EVENTO_CAMBIO = 'andescheck-offline-queue-changed'
@@ -64,6 +65,9 @@ export async function sincronizarCola(supabase) {
     if (op.modo === 'rpc') {
       const { data, error: errRpc } = await supabase.rpc(op.funcion, op.args)
       error = errRpc || (data && data.ok === false ? new Error(data.msg || 'No se pudo sincronizar') : null)
+      if (!error && op.funcion === 'ejecutar_checklist' && data?.id_ejecucion) {
+        enviarChecklistMail(supabase, data.id_ejecucion)
+      }
     } else {
       const { error: errInsert } = await supabase.from(op.tabla).insert(op.payload)
       error = errInsert
