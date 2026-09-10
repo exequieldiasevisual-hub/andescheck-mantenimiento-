@@ -9,10 +9,10 @@
 -- devuelve TODAS las filas de TODAS las empresas a cualquiera que la
 -- consulte, sin importar su empresa.
 --
--- Esto afectaba a 4 vistas usadas en toda la app:
+-- Esto afectaba a 3 vistas usadas en toda la app (preventivos_calculado
+-- ya no existe, la reemplazó el sistema de rutinas v2):
 --   - rutinas_calculado    (Rutinas de Mantenimiento)
 --   - unidad_docs_calculado (Documentos)
---   - preventivos_calculado
 --   - herramientas_calculado (Herramientas/pañol)
 --
 -- Detectado porque un usuario de la empresa GMO veía unidades de prueba
@@ -28,5 +28,4 @@
 
 alter view rutinas_calculado set (security_invoker = on);
 alter view unidad_docs_calculado set (security_invoker = on);
-alter view preventivos_calculado set (security_invoker = on);
 alter view herramientas_calculado set (security_invoker = on);
