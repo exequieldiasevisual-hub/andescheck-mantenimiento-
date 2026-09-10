@@ -3,6 +3,7 @@ import Modal from './Modal'
 import BuscadorUnidad from './BuscadorUnidad'
 
 const PATRON_PATENTE = /([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})/
+const ANCHO_RECORTE_OBJETIVO = 640
 
 // Pasa a escala de grises y, si el fondo predomina oscuro (patentes viejas:
 // letras blancas en relieve sobre fondo negro), invierte los colores — el
@@ -27,23 +28,31 @@ function preprocesarParaOcr(canvas) {
   ctx.putImageData(imagenData, 0, 0)
 }
 
-function redimensionarImagen(file, maxAncho = 1280) {
+function cargarImagen(file) {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
-    img.onload = () => {
-      const escala = Math.min(1, maxAncho / img.width)
-      const canvas = document.createElement('canvas')
-      canvas.width = img.width * escala
-      canvas.height = img.height * escala
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
-      preprocesarParaOcr(canvas)
-      URL.revokeObjectURL(url)
-      resolve(canvas.toDataURL('image/jpeg', 0.9))
-    }
+    img.onload = () => resolve({ img, url })
     img.onerror = reject
     img.src = url
   })
+}
+
+// Recorta la zona de patente elegida y la agranda a un ancho fijo — el
+// resto de la foto (auto, fondo) sobra y solo le resta resolución real a
+// los caracteres que el OCR tiene que leer.
+function recortarYPreparar(img, rectNatural) {
+  const escala = ANCHO_RECORTE_OBJETIVO / rectNatural.width
+  const canvas = document.createElement('canvas')
+  canvas.width = ANCHO_RECORTE_OBJETIVO
+  canvas.height = Math.max(1, rectNatural.height * escala)
+  canvas.getContext('2d').drawImage(
+    img,
+    rectNatural.x, rectNatural.y, rectNatural.width, rectNatural.height,
+    0, 0, canvas.width, canvas.height
+  )
+  preprocesarParaOcr(canvas)
+  return canvas.toDataURL('image/jpeg', 0.9)
 }
 
 const normalizar = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
@@ -66,26 +75,80 @@ async function leerPatenteLocal(imagenBase64) {
 }
 
 export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }) {
-  const [estado, setEstado] = useState('inicial') // inicial | procesando | resultado
+  const [estado, setEstado] = useState('inicial') // inicial | recortando | procesando | resultado
+  const [foto, setFoto] = useState(null) // { img, url }
+  const [seleccion, setSeleccion] = useState(null) // { x, y, width, height } en px de pantalla, relativo a la imagen
   const [patenteDetectada, setPatenteDetectada] = useState('')
   const [unidadEncontrada, setUnidadEncontrada] = useState(null)
   const [error, setError] = useState('')
   const inputRef = useRef(null)
+  const imgRef = useRef(null)
+  const arrastreRef = useRef(null)
 
   useEffect(() => {
     if (estado === 'inicial') inputRef.current?.click()
   }, [estado])
 
-  async function procesarFoto(file) {
-    setEstado('procesando')
+  async function onFotoElegida(file) {
     setError('')
     try {
-      const imagenBase64 = await redimensionarImagen(file)
+      const cargada = await cargarImagen(file)
+      setFoto(cargada)
+      setSeleccion(null)
+      setEstado('recortando')
+    } catch {
+      setError('No se pudo abrir la foto — probá de nuevo')
+    }
+  }
+
+  function posicionRelativa(e) {
+    const rect = imgRef.current.getBoundingClientRect()
+    const punto = e.touches?.[0] ?? e
+    return {
+      x: Math.min(Math.max(punto.clientX - rect.left, 0), rect.width),
+      y: Math.min(Math.max(punto.clientY - rect.top, 0), rect.height),
+    }
+  }
+
+  function iniciarArrastre(e) {
+    e.preventDefault()
+    const { x, y } = posicionRelativa(e)
+    arrastreRef.current = { startX: x, startY: y }
+    setSeleccion({ x, y, width: 0, height: 0 })
+  }
+
+  function moverArrastre(e) {
+    if (!arrastreRef.current) return
+    e.preventDefault()
+    const { x, y } = posicionRelativa(e)
+    const { startX, startY } = arrastreRef.current
+    setSeleccion({
+      x: Math.min(startX, x), y: Math.min(startY, y),
+      width: Math.abs(x - startX), height: Math.abs(y - startY),
+    })
+  }
+
+  function terminarArrastre() {
+    arrastreRef.current = null
+  }
+
+  async function confirmarRecorte() {
+    if (!foto || !seleccion || seleccion.width < 10 || seleccion.height < 10) return
+    setEstado('procesando')
+    try {
+      const escalaNatural = foto.img.naturalWidth / imgRef.current.clientWidth
+      const rectNatural = {
+        x: seleccion.x * escalaNatural,
+        y: seleccion.y * escalaNatural,
+        width: seleccion.width * escalaNatural,
+        height: seleccion.height * escalaNatural,
+      }
+      const imagenBase64 = recortarYPreparar(foto.img, rectNatural)
       const { patente, textoDetectado } = await leerPatenteLocal(imagenBase64)
       if (!patente) {
         const preview = textoDetectado?.trim().slice(0, 80)
-        setError(preview ? `No se detectó una patente. Texto leído: "${preview}"` : 'No se detectó texto en la foto — probá con más luz o de más cerca')
-        setEstado('inicial')
+        setError(preview ? `No se detectó una patente. Texto leído: "${preview}"` : 'No se detectó texto en el recorte — probá marcando justo la patente')
+        setEstado('recortando')
         return
       }
       setPatenteDetectada(patente)
@@ -94,8 +157,16 @@ export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }
     } catch (err) {
       console.error('Error leyendo patente:', err)
       setError(`No se pudo procesar la foto (${err?.message || 'error desconocido'})`)
-      setEstado('inicial')
+      setEstado('recortando')
     }
+  }
+
+  function sacarOtraFoto() {
+    if (foto) URL.revokeObjectURL(foto.url)
+    setFoto(null)
+    setSeleccion(null)
+    setError('')
+    setEstado('inicial')
   }
 
   return (
@@ -108,9 +179,40 @@ export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }
             <input
               ref={inputRef}
               type="file" accept="image/*" capture="environment" className="hidden"
-              onChange={e => e.target.files[0] && procesarFoto(e.target.files[0])}
+              onChange={e => e.target.files[0] && onFotoElegida(e.target.files[0])}
             />
           </label>
+        )}
+
+        {estado === 'recortando' && foto && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600 dark:text-gray-400">Marcá un recuadro justo sobre la patente, apretando y arrastrando:</p>
+            <div
+              className="relative touch-none select-none"
+              onMouseDown={iniciarArrastre} onMouseMove={moverArrastre} onMouseUp={terminarArrastre} onMouseLeave={terminarArrastre}
+              onTouchStart={iniciarArrastre} onTouchMove={moverArrastre} onTouchEnd={terminarArrastre}
+            >
+              <img ref={imgRef} src={foto.url} alt="Foto tomada" className="w-full rounded-lg" draggable={false} />
+              {seleccion && (
+                <div
+                  className="absolute border-2 border-blue-500 bg-blue-500/20"
+                  style={{ left: seleccion.x, top: seleccion.y, width: seleccion.width, height: seleccion.height }}
+                />
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button" onClick={confirmarRecorte}
+                disabled={!seleccion || seleccion.width < 10 || seleccion.height < 10}
+                className="flex-1 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              >
+                Leer patente
+              </button>
+              <button type="button" onClick={sacarOtraFoto} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:underline">
+                Sacar otra foto
+              </button>
+            </div>
+          </div>
         )}
 
         {estado === 'procesando' && (
@@ -135,7 +237,7 @@ export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }
                 <BuscadorUnidad unidades={unidades} value={''} onChange={onAbrirFicha} />
               </>
             )}
-            <button type="button" onClick={() => setEstado('inicial')} className="text-xs text-blue-600 hover:underline">
+            <button type="button" onClick={sacarOtraFoto} className="text-xs text-blue-600 hover:underline">
               Sacar otra foto
             </button>
           </div>
