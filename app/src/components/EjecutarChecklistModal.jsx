@@ -112,6 +112,9 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
                 {item.tipo_respuesta === 'texto' ? (
                   <textarea value={respuestas[item.id] || ''} onChange={e => setRespuesta(item.id, e.target.value)}
                     className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" rows={2} />
+                ) : item.tipo_respuesta === 'fecha' ? (
+                  <input type="date" value={respuestas[item.id] || ''} onChange={e => setRespuesta(item.id, e.target.value)}
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
                 ) : (
                   <div className="flex gap-2 flex-wrap">
                     {(item.tipo_respuesta === 'si_no' ? ['Sí', 'No'] : ['Bien', 'Regular', 'Mal']).map(v => (

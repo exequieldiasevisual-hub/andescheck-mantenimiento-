@@ -7,6 +7,7 @@ const TIPOS_RESPUESTA = [
   { value: 'si_no', label: 'Sí / No' },
   { value: 'estado', label: 'Bien / Regular / Mal' },
   { value: 'texto', label: 'Texto libre' },
+  { value: 'fecha', label: 'Fecha (ej: vencimiento)' },
 ]
 
 const VALORES_POR_TIPO = {
@@ -115,11 +116,26 @@ export default function PlantillaChecklistModal({ plantilla, empresaId, onClose,
                 {item.tipo_respuesta !== 'texto' && (
                   <label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
                     <input type="checkbox" checked={item.dispara_novedad} onChange={e => actualizarItem(idx, 'dispara_novedad', e.target.checked)} />
-                    Generar Novedad automática si la respuesta es...
+                    {item.tipo_respuesta === 'fecha' ? 'Generar alerta de vencimiento (Novedad)' : 'Generar Novedad automática si la respuesta es...'}
                   </label>
                 )}
 
-                {item.dispara_novedad && (
+                {item.dispara_novedad && item.tipo_respuesta === 'fecha' && (
+                  <div className="grid grid-cols-3 gap-2 pl-5">
+                    <div className="flex items-center gap-1.5">
+                      <input type="number" min="0" value={item.valor_disparador} onChange={e => actualizarItem(idx, 'valor_disparador', e.target.value)}
+                        placeholder="15"
+                        className="w-20 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                      <span className="text-xs text-gray-400 whitespace-nowrap">días antes de vencer</span>
+                    </div>
+                    <SelectConfig seccion="tipos_novedad" value={item.novedad_tipo} onChange={v => actualizarItem(idx, 'novedad_tipo', v)} dosColumnas={false} />
+                    <input value={item.novedad_descripcion} onChange={e => actualizarItem(idx, 'novedad_descripcion', e.target.value)}
+                      placeholder="Descripción de la novedad (opcional)"
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
+                  </div>
+                )}
+
+                {item.dispara_novedad && item.tipo_respuesta !== 'fecha' && (
                   <div className="grid grid-cols-3 gap-2 pl-5">
                     <select value={item.valor_disparador} onChange={e => actualizarItem(idx, 'valor_disparador', e.target.value)}
                       className="border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs">
