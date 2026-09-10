@@ -60,6 +60,7 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
 
   function setField(k, v) { setForm(f => ({ ...f, [k]: v })) }
+  function setFieldMayus(k, v) { setField(k, v.toUpperCase()) }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -116,7 +117,7 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Descripción *</label>
           <input
             value={form.descripcion}
-            onChange={e => setField('descripcion', e.target.value)}
+            onChange={e => setFieldMayus('descripcion', e.target.value)}
             className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
@@ -126,7 +127,7 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
           <SelectConfig label="Tipo" seccion="tipos_unidad" value={form.tipo} onChange={v => setField('tipo', v)} />
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Patente / N° serie</label>
-            <input value={form.patente_serie || ''} onChange={e => setField('patente_serie', e.target.value)}
+            <input value={form.patente_serie || ''} onChange={e => setFieldMayus('patente_serie', e.target.value)}
               className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
@@ -134,12 +135,12 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Marca</label>
-            <input value={form.marca || ''} onChange={e => setField('marca', e.target.value)}
+            <input value={form.marca || ''} onChange={e => setFieldMayus('marca', e.target.value)}
               className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Modelo</label>
-            <input value={form.modelo || ''} onChange={e => setField('modelo', e.target.value)}
+            <input value={form.modelo || ''} onChange={e => setFieldMayus('modelo', e.target.value)}
               className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
@@ -147,12 +148,12 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">N° de motor</label>
-            <input value={form.numero_motor || ''} onChange={e => setField('numero_motor', e.target.value)}
+            <input value={form.numero_motor || ''} onChange={e => setFieldMayus('numero_motor', e.target.value)}
               className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">N° de chasis</label>
-            <input value={form.numero_chasis || ''} onChange={e => setField('numero_chasis', e.target.value)}
+            <input value={form.numero_chasis || ''} onChange={e => setFieldMayus('numero_chasis', e.target.value)}
               className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
@@ -194,7 +195,7 @@ function UnidadModal({ unidad, empresaId, onClose, onSaved }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Configuración de ejes</label>
-            <input value={form.config_ejes || ''} onChange={e => setField('config_ejes', e.target.value)}
+            <input value={form.config_ejes || ''} onChange={e => setFieldMayus('config_ejes', e.target.value)}
               placeholder="Ej: 4x2, Tridem"
               className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
