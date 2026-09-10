@@ -193,8 +193,9 @@ export default function Documentos({ usuario, filtroUnidadInicial }) {
   }, [])
 
   async function eliminarDocumento() {
-    const { error } = await supabase.from('unidad_docs').delete().eq('id', documentoEliminar.id)
+    const { error, count } = await supabase.from('unidad_docs').delete({ count: 'exact' }).eq('id', documentoEliminar.id)
     if (error) throw error
+    if (!count) throw new Error('No se pudo eliminar — el documento no tiene una unidad válida asociada')
     setDocumentoEliminar(null)
     cargar()
   }
