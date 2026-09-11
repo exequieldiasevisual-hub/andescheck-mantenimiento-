@@ -181,7 +181,7 @@ function armarHtmlMail(datos) {
 
       <div style="padding:20px;">
         <p style="font-size:13px;margin:0 0 12px;">Cordialmente,</p>
-        <p style="font-size:13px;margin:0;">Equipo de AndesCheck<br><a href="https://andescheck.com" style="color:#185fa5;">https://andescheck.com</a></p>
+        <p style="font-size:13px;margin:0;">Equipo de AndesCheck<br><a href="https://andescheck-web.vercel.app/" style="color:#185fa5;">https://andescheck-web.vercel.app</a></p>
       </div>
 
       <div style="background:#f5f5f3;text-align:center;padding:14px 20px;">

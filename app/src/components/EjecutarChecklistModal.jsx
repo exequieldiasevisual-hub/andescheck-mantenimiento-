@@ -25,8 +25,10 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
   const [fotos, setFotos] = useState([])
   const [error, setError] = useState('')
   const [confirmando, setConfirmando] = useState(false)
+  const [intentoSubmit, setIntentoSubmit] = useState(false)
   const online = useOnline()
   const padRef = useRef(null)
+  const refsItems = useRef({})
 
   const unidadSeleccionada = unidades.find(u => u.id === idUnidad)
   const plantillasDisponibles = plantillas.filter(p => !p.tipo_unidad || !unidadSeleccionada || p.tipo_unidad === unidadSeleccionada.tipo)
@@ -40,7 +42,12 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
     if (!idUnidad) { setError('La unidad es obligatoria'); return }
     if (!idPlantilla) { setError('Elegí una plantilla'); return }
     const faltantes = items.filter(i => !respuestas[i.id]?.trim())
-    if (faltantes.length > 0) { setError('Faltan responder ' + faltantes.length + ' ítem(s)'); return }
+    if (faltantes.length > 0) {
+      setIntentoSubmit(true)
+      setError('Faltan responder ' + faltantes.length + ' ítem(s) — marcados en rojo')
+      refsItems.current[faltantes[0].id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
     if (padRef.current.isEmpty()) { setError('Falta la firma de quien completa el checklist'); return }
     setError('')
     setConfirmando(true)
@@ -106,9 +113,13 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
 
         {items.length > 0 && (
           <div className="space-y-3 border-t border-gray-100 dark:border-gray-800 pt-3">
-            {items.map(item => (
-              <div key={item.id}>
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">{item.pregunta}</p>
+            {items.map(item => {
+              const falta = intentoSubmit && !respuestas[item.id]?.trim()
+              return (
+              <div key={item.id} ref={el => { refsItems.current[item.id] = el }} className={falta ? 'border border-red-400 dark:border-red-600 rounded-lg p-2 -m-2' : ''}>
+                <p className={`text-sm mb-1 ${falta ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
+                  {item.pregunta} {falta && <span className="text-xs">— falta responder</span>}
+                </p>
                 {item.tipo_respuesta === 'texto' ? (
                   <textarea value={respuestas[item.id] || ''} onChange={e => setRespuesta(item.id, e.target.value)}
                     className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" rows={2} />
@@ -134,7 +145,8 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
                   </div>
                 )}
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
