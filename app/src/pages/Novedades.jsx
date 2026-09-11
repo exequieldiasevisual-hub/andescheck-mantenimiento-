@@ -6,7 +6,6 @@ import MotivoModal from '../components/MotivoModal'
 import OtModal from '../components/OtModal'
 import NovedadModal from '../components/NovedadModal'
 import MultiSelectFiltro from '../components/MultiSelectFiltro'
-import ConfirmModal from '../components/ConfirmModal'
 
 function ElegirOtModal({ novedad, otAbierta, onClose, onElegirExistente, onElegirNueva }) {
   const [saving, setSaving] = useState(false)
@@ -338,9 +337,9 @@ export default function Novedades({ usuario, abrirOt, filtroUnidadInicial }) {
       )}
 
       {novedadEliminar && (
-        <ConfirmModal
-          titulo="Eliminar novedad"
-          mensaje={`¿Eliminar la novedad "${novedadEliminar.descripcion}"? Esta acción no se puede deshacer.`}
+        <MotivoModal
+          titulo={`Eliminar novedad — ${novedadEliminar.descripcion}`}
+          label="Motivo de la eliminación *"
           textoBoton="Eliminar"
           onConfirm={eliminarNovedad}
           onClose={() => setNovedadEliminar(null)}
