@@ -72,6 +72,52 @@ async function armarPdf(datos) {
   return doc.output('datauristring').split(',')[1]
 }
 
+function armarHtmlMail(datos) {
+  const respuestas = datos.respuestas || []
+  const observaciones = respuestas.filter(r => ['Mal', 'No'].includes(r.respuesta)).length
+  const total = respuestas.length
+  const empresa = datos.empresa?.razon_social || 'AndesCheck'
+  const unidadTexto = [datos.unidad?.patente_serie, datos.unidad?.descripcion].filter(Boolean).join(' — ')
+  const anio = new Date().getFullYear()
+
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#222;">
+      <div style="text-align:center;padding:24px 20px 16px;">
+        <p style="font-weight:bold;font-size:16px;margin:0;">${empresa}</p>
+        <p style="font-size:13px;color:#666;margin:4px 0 12px;">${datos.plantilla?.nombre || ''} — ${unidadTexto}</p>
+        <span style="display:inline-block;background:${observaciones > 0 ? '#fcebeb' : '#eaf3de'};color:${observaciones > 0 ? '#791f1f' : '#27500a'};font-size:12px;font-weight:bold;padding:5px 14px;border-radius:6px;">
+          ${observaciones > 0 ? `${observaciones} observación(es)` : 'Sin observaciones'}
+        </span>
+      </div>
+
+      <table style="width:100%;background:#f5f5f3;border-radius:8px;text-align:center;border-collapse:collapse;margin:0 0 16px;">
+        <tr>
+          <td style="padding:12px 4px;"><p style="font-size:18px;font-weight:bold;margin:0;color:#27500a;">${total - observaciones}</p><p style="font-size:11px;color:#666;margin:2px 0 0;">Bien</p></td>
+          <td style="padding:12px 4px;"><p style="font-size:18px;font-weight:bold;margin:0;color:#791f1f;">${observaciones}</p><p style="font-size:11px;color:#666;margin:2px 0 0;">Observados</p></td>
+          <td style="padding:12px 4px;"><p style="font-size:18px;font-weight:bold;margin:0;">${total}</p><p style="font-size:11px;color:#666;margin:2px 0 0;">Total ítems</p></td>
+        </tr>
+      </table>
+
+      <table style="width:100%;font-size:13px;border-collapse:collapse;padding:0 20px;">
+        <tr><td style="padding:4px 20px;color:#666;">Realizado por</td><td style="padding:4px 20px;text-align:right;">${datos.ejecucion?.usuario_nombre || '—'}</td></tr>
+        <tr><td style="padding:4px 20px;color:#666;">Fecha</td><td style="padding:4px 20px;text-align:right;">${new Date(datos.ejecucion?.fecha).toLocaleString('es-AR')}</td></tr>
+        ${datos.ejecucion?.ubicacion_url ? `<tr><td style="padding:4px 20px;color:#666;">Ubicación</td><td style="padding:4px 20px;text-align:right;"><a href="${datos.ejecucion.ubicacion_url}" style="color:#185fa5;">Ver en mapa</a></td></tr>` : ''}
+      </table>
+
+      <p style="font-size:13px;color:#666;padding:0 20px;margin:16px 0 0;">El detalle completo, con todas las respuestas, fotos y firma, está en el PDF adjunto.</p>
+
+      <div style="padding:20px;">
+        <p style="font-size:13px;margin:0 0 12px;">Cordialmente,</p>
+        <p style="font-size:13px;margin:0;">Equipo de AndesCheck<br><a href="https://andescheck.com" style="color:#185fa5;">https://andescheck.com</a></p>
+      </div>
+
+      <div style="background:#f5f5f3;text-align:center;padding:14px 20px;">
+        <p style="font-size:11px;color:#999;margin:0;">Copyright ${anio} AndesCheck. Todos los derechos reservados.</p>
+      </div>
+    </div>
+  `
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ ok: false, msg: 'Método no permitido' }); return }
   const auth = req.headers.authorization
@@ -97,6 +143,7 @@ export default async function handler(req, res) {
   if (!resendKey) { res.status(200).json({ ok: false, msg: 'Falta configurar RESEND_API_KEY en Vercel' }); return }
 
   const pdfBase64 = await armarPdf(datos)
+  const html = armarHtmlMail(datos)
 
   const resendRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -105,7 +152,7 @@ export default async function handler(req, res) {
       from: 'AndesCheck <noreply@andescheck.com>',
       to: destinatarios,
       subject: `Checklist ${datos.plantilla?.nombre || ''} — ${datos.unidad?.patente_serie || datos.unidad?.descripcion || ''}`,
-      html: `<p>Se completó el checklist "${datos.plantilla?.nombre || ''}" en la unidad ${[datos.unidad?.patente_serie, datos.unidad?.descripcion].filter(Boolean).join(' — ')}.</p><p>Adjunto el detalle en PDF.</p>`,
+      html,
       attachments: [{ filename: 'checklist.pdf', content: pdfBase64 }],
     }),
   })
