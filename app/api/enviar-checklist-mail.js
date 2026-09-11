@@ -137,8 +137,15 @@ async function armarPdf(datos) {
   for (let p = 1; p <= totalPaginas; p++) {
     doc.setPage(p)
     doc.setFontSize(8)
+    const parteGris = 'Powered by Andes'
+    const parteNaranja = 'Check'
+    const anchoGris = doc.getTextWidth(parteGris)
+    const anchoNaranja = doc.getTextWidth(parteNaranja)
+    const xInicio = centroX - (anchoGris + anchoNaranja) / 2
     doc.setTextColor(160, 160, 160)
-    doc.text('Powered by AndesCheck', centroX, 291, { align: 'center' })
+    doc.text(parteGris, xInicio, 291)
+    doc.setTextColor(234, 88, 12)
+    doc.text(parteNaranja, xInicio + anchoGris, 291)
   }
 
   return doc.output('datauristring').split(',')[1]
