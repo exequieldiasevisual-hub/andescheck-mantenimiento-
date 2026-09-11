@@ -6,6 +6,7 @@ import MotivoModal from '../components/MotivoModal'
 import OtModal from '../components/OtModal'
 import NovedadModal from '../components/NovedadModal'
 import MultiSelectFiltro from '../components/MultiSelectFiltro'
+import ConfirmModal from '../components/ConfirmModal'
 
 function ElegirOtModal({ novedad, otAbierta, onClose, onElegirExistente, onElegirNueva }) {
   const [saving, setSaving] = useState(false)
@@ -62,6 +63,7 @@ export default function Novedades({ usuario, abrirOt, filtroUnidadInicial }) {
   const [novedadDerivar, setNovedadDerivar] = useState(null)
   const [novedadRechazar, setNovedadRechazar] = useState(null)
   const [otParaElegir, setOtParaElegir] = useState(null)
+  const [novedadEliminar, setNovedadEliminar] = useState(null)
   const [busqueda, setBusqueda] = useState('')
   const [filtroUnidad, setFiltroUnidad] = useState(filtroUnidadInicial || '')
   const [filtroEstado, setFiltroEstado] = useState('')
@@ -74,6 +76,7 @@ export default function Novedades({ usuario, abrirOt, filtroUnidadInicial }) {
 
   const puedeDerivar = ['administrador', 'supervisor'].includes(usuario?.rol)
   const puedeAprobar = ['jefe_taller', 'administrador'].includes(usuario?.rol)
+  const puedeEliminar = usuario?.rol === 'administrador'
 
   async function cargar() {
     setLoading(true)
@@ -123,6 +126,13 @@ export default function Novedades({ usuario, abrirOt, filtroUnidadInicial }) {
     if (error) { setError(error.message); return }
     if (!data?.ok) { setError(data.msg); return }
     setNovedadRechazar(null)
+    cargar()
+  }
+
+  async function eliminarNovedad() {
+    const { error } = await supabase.from('novedades').delete().eq('id', novedadEliminar.id)
+    if (error) throw error
+    setNovedadEliminar(null)
     cargar()
   }
 
@@ -268,7 +278,10 @@ export default function Novedades({ usuario, abrirOt, filtroUnidadInicial }) {
                         </>
                       )}
                       {puedeDerivar && n.estado === 'Aprobada' && (
-                        <button onClick={() => iniciarDerivar(n)} className="text-blue-600 hover:underline text-xs">Derivar a OT</button>
+                        <button onClick={() => iniciarDerivar(n)} className="text-blue-600 hover:underline text-xs mr-3">Derivar a OT</button>
+                      )}
+                      {puedeEliminar && (
+                        <button onClick={() => setNovedadEliminar(n)} className="text-red-500 dark:text-red-400 hover:underline text-xs">Eliminar</button>
                       )}
                     </td>
                   </tr>
@@ -321,6 +334,16 @@ export default function Novedades({ usuario, abrirOt, filtroUnidadInicial }) {
           textoBoton="Rechazar"
           onConfirm={rechazar}
           onClose={() => setNovedadRechazar(null)}
+        />
+      )}
+
+      {novedadEliminar && (
+        <ConfirmModal
+          titulo="Eliminar novedad"
+          mensaje={`¿Eliminar la novedad "${novedadEliminar.descripcion}"? Esta acción no se puede deshacer.`}
+          textoBoton="Eliminar"
+          onConfirm={eliminarNovedad}
+          onClose={() => setNovedadEliminar(null)}
         />
       )}
     </div>
