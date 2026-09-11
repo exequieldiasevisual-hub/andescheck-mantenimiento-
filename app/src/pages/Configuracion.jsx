@@ -4,6 +4,7 @@ import { exportarXlsx } from '../lib/exportarXlsx'
 import { parseCsv } from '../lib/importarCsv'
 import { parseXlsx } from '../lib/importarXlsx'
 import SelectConfig from '../components/SelectConfig'
+import MultiSelectFiltro from '../components/MultiSelectFiltro'
 import ConfirmModal from '../components/ConfirmModal'
 
 // --- Parámetros generales (valores sueltos, no listas) -----------------
@@ -238,6 +239,91 @@ function TablaSimple({ titulo, columna, seccion, empresaId, filas, onChange }) {
               <td className="px-4 py-2">
                 <input defaultValue={f.clave} onBlur={e => actualizar(f, e.target.value)}
                   className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm" />
+              </td>
+              <td className="px-4 py-2 text-right">
+                <button onClick={() => setFilaEliminar(f)} aria-label={`Eliminar ${f.clave}`} className="bg-red-500 hover:bg-red-600 text-white text-xs w-6 h-6 rounded">✕</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {filaEliminar && (
+        <ConfirmModal
+          titulo="Eliminar"
+          mensaje={`¿Eliminar "${filaEliminar.clave}"?`}
+          textoBoton="Eliminar"
+          onConfirm={eliminar}
+          onClose={() => setFilaEliminar(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// --- Destinatarios de mail de checklists, cada uno con sus tipos de unidad
+// (vacío = le llegan todos). El código (clave) es el email; el valor guarda
+// los tipos de unidad separados por coma.
+function DestinatariosChecklist({ empresaId, filas, tiposUnidad, etiquetasTipoUnidad, onChange }) {
+  const [nuevoEmail, setNuevoEmail] = useState('')
+  const [filaEliminar, setFilaEliminar] = useState(null)
+
+  async function agregar() {
+    const email = nuevoEmail.trim()
+    if (!email || filas.some(f => f.clave === email)) return
+    await supabase.from('configuracion').insert({ empresa_id: empresaId, seccion: 'checklist_destinatarios_mail', clave: email, valor: '' })
+    setNuevoEmail('')
+    onChange()
+  }
+
+  async function actualizarTipos(fila, tipos) {
+    await supabase.from('configuracion').update({ valor: tipos.join(',') })
+      .eq('empresa_id', empresaId).eq('seccion', 'checklist_destinatarios_mail').eq('clave', fila.clave)
+    onChange()
+  }
+
+  async function eliminar() {
+    const { error } = await supabase.from('configuracion').delete()
+      .eq('empresa_id', empresaId).eq('seccion', 'checklist_destinatarios_mail').eq('clave', filaEliminar.clave)
+    if (error) throw error
+    setFilaEliminar(null)
+    onChange()
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="px-4 py-3 flex items-center justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">Destinatarios de mail — Checklists</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Sin tipos de unidad marcados, le llegan checklists de cualquier unidad.</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <input type="email" value={nuevoEmail} onChange={e => setNuevoEmail(e.target.value)} placeholder="mail@empresa.com"
+            className="border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs w-48" />
+          <button onClick={agregar} className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700">+ Agregar</button>
+        </div>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-gray-50 dark:bg-gray-900 text-xs text-gray-400 dark:text-gray-500 font-medium">
+            <th className="px-4 py-2 text-left w-56">Email</th>
+            <th className="px-4 py-2 text-left">Tipos de unidad</th>
+            <th className="px-4 py-2 w-10"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {filas.map(f => (
+            <tr key={f.clave} className="border-t border-gray-100 dark:border-gray-800">
+              <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{f.clave}</td>
+              <td className="px-4 py-2">
+                <MultiSelectFiltro
+                  label="Todas las unidades"
+                  opciones={tiposUnidad}
+                  seleccionados={(f.valor || '').split(',').filter(Boolean)}
+                  onChange={tipos => actualizarTipos(f, tipos)}
+                  etiquetas={etiquetasTipoUnidad}
+                  soloEtiqueta
+                />
               </td>
               <td className="px-4 py-2 text-right">
                 <button onClick={() => setFilaEliminar(f)} aria-label={`Eliminar ${f.clave}`} className="bg-red-500 hover:bg-red-600 text-white text-xs w-6 h-6 rounded">✕</button>
@@ -575,7 +661,13 @@ export default function Configuracion({ usuario }) {
             <TablaSimple titulo="Tipos de Novedad" columna="Descripción" seccion="tipos_novedad" empresaId={usuario.empresa_id} filas={porSeccion('tipos_novedad')} onChange={cargar} />
             <TablaSimple titulo="Motivos de Pausa" columna="Motivo" seccion="motivos_pausa" empresaId={usuario.empresa_id} filas={porSeccion('motivos_pausa')} onChange={cargar} />
             <TablaSimple titulo="Tipos de Documento (Unidades)" columna="Tipo de documento" seccion="tipos_documento" empresaId={usuario.empresa_id} filas={porSeccion('tipos_documento')} onChange={cargar} />
-            <TablaSimple titulo="Destinatarios de mail — Checklists" columna="Email" seccion="checklist_destinatarios_mail" empresaId={usuario.empresa_id} filas={porSeccion('checklist_destinatarios_mail')} onChange={cargar} />
+            <DestinatariosChecklist
+              empresaId={usuario.empresa_id}
+              filas={porSeccion('checklist_destinatarios_mail')}
+              tiposUnidad={porSeccion('tipos_unidad').map(f => f.clave)}
+              etiquetasTipoUnidad={Object.fromEntries(porSeccion('tipos_unidad').map(f => [f.clave, f.valor]))}
+              onChange={cargar}
+            />
             <AlertasDocumentos
               empresaId={usuario.empresa_id}
               tiposDocumento={porSeccion('tipos_documento').map(f => f.clave)}
