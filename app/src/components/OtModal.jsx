@@ -48,6 +48,8 @@ export default function OtModal({ unidades, proveedores, unidadInicial, descripc
   const unidadSeleccionada = unidades.find(u => u.id === form.id_unidad)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [rutinasUnidad, setRutinasUnidad] = useState([])
+  const [rutinasSeleccionadas, setRutinasSeleccionadas] = useState([])
 
   function setField(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
@@ -58,6 +60,19 @@ export default function OtModal({ unidades, proveedores, unidadInicial, descripc
       km_actuales: u?.km_actuales ?? '',
       hs_actuales: u?.hs_actuales ?? '',
     }))
+  }
+
+  useEffect(() => {
+    setRutinasSeleccionadas([])
+    if (!form.id_unidad) { setRutinasUnidad([]); return }
+    supabase.from('rutinas_calculado').select('id, descripcion, estado_calculado').eq('id_unidad', form.id_unidad).eq('activo', true)
+      .then(({ data }) => setRutinasUnidad((data || [])
+        .filter(r => r.estado_calculado === 'Vencida' || r.estado_calculado === 'Proxima')
+        .sort((a, b) => (a.estado_calculado === 'Vencida' ? 0 : 1) - (b.estado_calculado === 'Vencida' ? 0 : 1))))
+  }, [form.id_unidad])
+
+  function toggleRutina(id) {
+    setRutinasSeleccionadas(sel => sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id])
   }
 
   async function handleSubmit(e) {
@@ -95,9 +110,14 @@ export default function OtModal({ unidades, proveedores, unidadInicial, descripc
           p_observaciones: form.observaciones.trim() || null,
         })
 
+    if (error) { setSaving(false); setError(error.message); return }
+    if (!data?.ok) { setSaving(false); setError(data?.msg ?? 'No se pudo crear la OT'); return }
+
+    for (const idRutina of rutinasSeleccionadas) {
+      await supabase.rpc('cumplir_rutina_en_ot', { p_id_ot: data.id_ot, p_id_rutina: idRutina })
+    }
+
     setSaving(false)
-    if (error) { setError(error.message); return }
-    if (!data?.ok) { setError(data?.msg ?? 'No se pudo crear la OT'); return }
     onCreada(data.id_ot)
   }
 
@@ -114,6 +134,18 @@ export default function OtModal({ unidades, proveedores, unidadInicial, descripc
             <BuscadorUnidad unidades={unidades} value={form.id_unidad} onChange={elegirUnidad} />
           )}
         </div>
+
+        {rutinasUnidad.length > 0 && (
+          <div className="border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 space-y-1.5">
+            <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Esta unidad tiene rutinas vencidas o por vencer — sumalas a esta OT si corresponde:</p>
+            {rutinasUnidad.map(r => (
+              <label key={r.id} className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
+                <input type="checkbox" checked={rutinasSeleccionadas.includes(r.id)} onChange={() => toggleRutina(r.id)} />
+                {r.estado_calculado === 'Vencida' ? 'Vencida' : 'Por vencer'}: {r.descripcion}
+              </label>
+            ))}
+          </div>
+        )}
 
         {form.id_unidad && (unidadSeleccionada?.km_actuales != null || unidadSeleccionada?.hs_actuales != null) && (
           <div className="grid grid-cols-2 gap-3">
