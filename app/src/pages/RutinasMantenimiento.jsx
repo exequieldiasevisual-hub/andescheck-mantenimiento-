@@ -7,6 +7,7 @@ import MultiSelectFiltro from '../components/MultiSelectFiltro'
 import SelectConfig from '../components/SelectConfig'
 import BuscadorCatalogo from '../components/BuscadorCatalogo'
 import BuscadorUnidad from '../components/BuscadorUnidad'
+import ConfirmModal from '../components/ConfirmModal'
 
 const VACIO = { id_unidad: '', descripcion: '', tipo_trigger: 'km', intervalo: '' }
 
@@ -722,6 +723,7 @@ export default function RutinasMantenimiento({ usuario, abrirOt, filtroUnidadTex
   const [planesLoading, setPlanesLoading] = useState(true)
   const [planModalAbierto, setPlanModalAbierto] = useState(false)
   const [planEditar, setPlanEditar] = useState(null)
+  const [planEliminar, setPlanEliminar] = useState(null)
   const [resultadoAplicarPlan, setResultadoAplicarPlan] = useState(null)
   const [aplicandoPlan, setAplicandoPlan] = useState(null)
   const [planesExpandidos, setPlanesExpandidos] = useState({})
@@ -758,6 +760,14 @@ export default function RutinasMantenimiento({ usuario, abrirOt, filtroUnidadTex
     if (error || !data?.ok) { setAccionError(data?.msg || error?.message); return }
     setResultadoAplicarPlan({ plan: plan.descripcion, creadas: data.creadas, unidadesRecorridas: data.unidades_recorridas })
     cargar()
+  }
+
+  async function eliminarPlan() {
+    const { data, error } = await supabase.rpc('eliminar_plan_mantenimiento', { p_id: planEliminar.id })
+    if (error) throw error
+    if (!data?.ok) throw new Error(data?.msg ?? 'No se pudo eliminar el plan')
+    setPlanEliminar(null)
+    cargarPlanes()
   }
 
   async function cargar() {
@@ -1117,6 +1127,7 @@ export default function RutinasMantenimiento({ usuario, abrirOt, filtroUnidadTex
                             {aplicandoPlan === p.id ? 'Aplicando…' : 'Aplicar a todas las unidades'}
                           </button>
                           <button onClick={() => { setPlanEditar(p); setPlanModalAbierto(true) }} className="text-blue-600 hover:underline text-xs">Editar</button>
+                          <button onClick={() => setPlanEliminar(p)} className="text-red-500 dark:text-red-400 hover:underline text-xs">Eliminar</button>
                         </>
                       )}
                     </div>
@@ -1216,6 +1227,16 @@ export default function RutinasMantenimiento({ usuario, abrirOt, filtroUnidadTex
           unidades={unidades}
           onClose={() => setPlanModalAbierto(false)}
           onSaved={() => { setPlanModalAbierto(false); cargarPlanes() }}
+        />
+      )}
+
+      {planEliminar && (
+        <ConfirmModal
+          titulo="Eliminar plan de mantenimiento"
+          mensaje={`¿Eliminar "${planEliminar.descripcion}"? Las rutinas ya aplicadas a unidades no se ven afectadas — esto solo saca el plan de la lista.`}
+          textoBoton="Eliminar"
+          onConfirm={eliminarPlan}
+          onClose={() => setPlanEliminar(null)}
         />
       )}
 
