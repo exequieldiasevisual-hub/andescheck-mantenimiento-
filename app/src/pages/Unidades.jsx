@@ -527,11 +527,11 @@ export default function Unidades({ usuario, abrirFicha, filtroSaludInicial }) {
               </thead>
               <tbody>
                 {ordenadas.map(u => (
-                  <tr key={u.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <tr key={u.id} onClick={() => abrirFicha(u.id)} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
                     <td className="px-5 py-3">
-                      <button onClick={() => abrirFicha(u.id)} className="text-gray-900 dark:text-gray-100 font-medium hover:underline text-left">
+                      <span className="text-gray-900 dark:text-gray-100 font-medium">
                         {u.patente_serie || '—'}
-                      </button>
+                      </span>
                       {!unidadesConRutina.has(u.id) && (
                         <span title="Sin rutinas de mantenimiento configuradas" className="ml-1.5 text-red-500 dark:text-red-400 text-xs">⚠</span>
                       )}
@@ -545,10 +545,7 @@ export default function Unidades({ usuario, abrirFicha, filtroSaludInicial }) {
                         {saludPorUnidad[u.id] ?? '—'}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-right whitespace-nowrap">
-                      <button onClick={() => abrirFicha(u.id)} className="text-blue-600 hover:underline text-xs mr-3">
-                        Ficha
-                      </button>
+                    <td className="px-5 py-3 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       {puedeEscribir && (
                         <button onClick={() => setKmHsAbierto(u)} className="text-gray-600 dark:text-gray-400 hover:underline text-xs mr-3">
                           📊 Km/Hs
