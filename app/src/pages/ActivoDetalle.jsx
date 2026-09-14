@@ -651,6 +651,7 @@ export default function ActivoDetalle({ idUnidad, usuario, volver, abrirOt, nave
           <KpiCard valor={kpis.docs_vencidos || 0} etiqueta="Docs vencidos" onClick={() => navegarA('documentos', { unidad: unidad.id })} />
           <KpiCard valor={kpis.novedades_pendientes || 0} etiqueta="Novedades pendientes" onClick={() => navegarA('novedades', { unidad: unidad.id })} />
           <KpiCard valor={paradas?.dias_parada_12m ?? '—'} etiqueta="Días parada (12m)" />
+          <KpiCard valor={kpis.dias_operativos_totales ?? '—'} etiqueta="Días operativos totales" />
         </div>
 
         <Card title="Paradas (fuera de servicio)">
