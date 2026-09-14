@@ -37,6 +37,9 @@ function OtCard({ ot, puedeGestionar, abrirDetalle, onAnular }) {
         {ot.tipo && <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700">{ot.tipo}</span>}
         {ot.listo_cierre && <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 font-medium">✅ Cierre técnico</span>}
       </div>
+      {ot.estado === 'Anulada' && ot.motivo_anulacion && (
+        <p className="text-xs text-red-500 dark:text-red-400 mb-2">Motivo de anulación: {ot.motivo_anulacion}</p>
+      )}
       {puedeVerProgreso && (
         <div className="mb-3">
           <div className="flex justify-between text-xs mb-1">
@@ -50,7 +53,7 @@ function OtCard({ ot, puedeGestionar, abrirDetalle, onAnular }) {
       )}
       <div className="flex gap-2">
         <button onClick={() => abrirDetalle(ot.id)} className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700">Ver detalle</button>
-        {puedeGestionar && ESTADOS_ABIERTOS.includes(ot.estado) && (
+        {puedeGestionar && ot.estado !== 'Anulada' && (
           <button onClick={() => onAnular(ot.id)} className="text-xs text-red-500 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700">Anular</button>
         )}
       </div>

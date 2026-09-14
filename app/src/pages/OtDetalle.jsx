@@ -718,6 +718,9 @@ export default function OtDetalle({ idOt, usuario, volver }) {
           <button onClick={volver} className="text-xs text-blue-600 hover:underline mb-1">← Volver a OT</button>
           <h1 className="text-base font-medium text-gray-900 dark:text-gray-100">{ot.numero_ot} — {ot.unidades?.descripcion}</h1>
           <p className="text-xs text-gray-400">{ot.estado} · {ot.tipo}</p>
+          {ot.estado === 'Anulada' && ot.motivo_anulacion && (
+            <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">Motivo de anulación: {ot.motivo_anulacion}</p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={cargar} disabled={actualizando} className="text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-lg transition-colors disabled:opacity-50">
