@@ -449,6 +449,7 @@ function CatalogoTrabajos() {
   const [form, setForm] = useState({ categoria: '', descripcion: '', tiempo_estimado_hs: '1' })
   const [trabajoEliminar, setTrabajoEliminar] = useState(null)
   const [busqueda, setBusqueda] = useState('')
+  const [sugerenciasAbiertas, setSugerenciasAbiertas] = useState(false)
 
   async function cargar() {
     setLoading(true)
@@ -559,10 +560,36 @@ function CatalogoTrabajos() {
           <div className="w-40">
             <SelectConfig label="Categoría" seccion="categorias_trabajo" value={form.categoria} onChange={v => setForm(f => ({ ...f, categoria: v }))} dosColumnas={false} required />
           </div>
-          <div className="flex-1 min-w-48">
+          <div className="flex-1 min-w-48 relative">
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Descripción</label>
-            <input value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))}
-              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm" required />
+            <input
+              value={form.descripcion}
+              onChange={e => { setForm(f => ({ ...f, descripcion: e.target.value })); setSugerenciasAbiertas(true) }}
+              onFocus={() => setSugerenciasAbiertas(true)}
+              onBlur={() => setTimeout(() => setSugerenciasAbiertas(false), 150)}
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm"
+              autoComplete="off"
+              required
+            />
+            {sugerenciasAbiertas && form.descripcion.trim().length >= 2 && (() => {
+              const q = form.descripcion.trim().toLowerCase()
+              const sugerencias = trabajos.filter(t => t.descripcion?.toLowerCase().includes(q)).slice(0, 8)
+              return sugerencias.length > 0 ? (
+                <div className="absolute z-10 top-full mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+                  <p className="px-3 py-1.5 text-xs text-amber-600 dark:text-amber-400 border-b border-gray-100 dark:border-gray-800">Ya existen trabajos parecidos:</p>
+                  {sugerencias.map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => { setForm(f => ({ ...f, descripcion: t.descripcion })); setSugerenciasAbiertas(false) }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      {t.descripcion} <span className="text-gray-400">({t.categoria})</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null
+            })()}
           </div>
           <div className="w-28">
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Tiempo (hs)</label>
