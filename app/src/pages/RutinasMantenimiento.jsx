@@ -1233,7 +1233,7 @@ export default function RutinasMantenimiento({ usuario, abrirOt, filtroUnidadTex
       {planEliminar && (
         <ConfirmModal
           titulo="Eliminar plan de mantenimiento"
-          mensaje={`¿Eliminar "${planEliminar.descripcion}"? Las rutinas ya aplicadas a unidades no se ven afectadas — esto solo saca el plan de la lista.`}
+          mensaje={`¿Eliminar "${planEliminar.descripcion}"? También se van a pausar todas las rutinas que ya se generaron a partir de este plan en cualquier unidad.`}
           textoBoton="Eliminar"
           onConfirm={eliminarPlan}
           onClose={() => setPlanEliminar(null)}
