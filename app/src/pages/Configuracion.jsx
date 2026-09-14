@@ -265,10 +265,14 @@ function TablaSimple({ titulo, columna, seccion, empresaId, filas, onChange }) {
 // --- Destinatarios de mail de checklists, cada uno con sus tipos de unidad
 // (vacío = le llegan todos). El código (clave) es el email; el valor guarda
 // los tipos de unidad separados por coma.
-function DestinatariosChecklist({ empresaId, filas, tiposUnidad, etiquetasTipoUnidad, onChange }) {
+function DestinatariosChecklist({ empresaId, filas, filasUnidades, tiposUnidad, etiquetasTipoUnidad, unidades, onChange }) {
   const [nuevoEmail, setNuevoEmail] = useState('')
   const [filaEliminar, setFilaEliminar] = useState(null)
   const [error, setError] = useState('')
+
+  const valorUnidades = clave => filasUnidades.find(f => f.clave === clave)?.valor || ''
+  const opcionesUnidad = unidades.map(u => u.id)
+  const etiquetasUnidad = Object.fromEntries(unidades.map(u => [u.id, [u.patente_serie, u.descripcion].filter(Boolean).join(' — ')]))
 
   async function agregar() {
     const email = nuevoEmail.trim()
@@ -287,10 +291,17 @@ function DestinatariosChecklist({ empresaId, filas, tiposUnidad, etiquetasTipoUn
     onChange()
   }
 
+  async function actualizarUnidades(fila, idsUnidad) {
+    await supabase.from('configuracion').upsert({ empresa_id: empresaId, seccion: 'checklist_destinatarios_unidades', clave: fila.clave, valor: idsUnidad.join(',') })
+    onChange()
+  }
+
   async function eliminar() {
     const { error } = await supabase.from('configuracion').delete()
       .eq('empresa_id', empresaId).eq('seccion', 'checklist_destinatarios_mail').eq('clave', filaEliminar.clave)
     if (error) throw error
+    await supabase.from('configuracion').delete()
+      .eq('empresa_id', empresaId).eq('seccion', 'checklist_destinatarios_unidades').eq('clave', filaEliminar.clave)
     setFilaEliminar(null)
     onChange()
   }
@@ -319,6 +330,7 @@ function DestinatariosChecklist({ empresaId, filas, tiposUnidad, etiquetasTipoUn
           <tr className="bg-gray-50 dark:bg-gray-900 text-xs text-gray-400 dark:text-gray-500 font-medium">
             <th className="px-4 py-2 text-left w-56">Email</th>
             <th className="px-4 py-2 text-left">Tipos de unidad</th>
+            <th className="px-4 py-2 text-left">Unidades puntuales</th>
             <th className="px-4 py-2 w-10"></th>
           </tr>
         </thead>
@@ -333,6 +345,16 @@ function DestinatariosChecklist({ empresaId, filas, tiposUnidad, etiquetasTipoUn
                   seleccionados={(f.valor || '').split(',').filter(Boolean)}
                   onChange={tipos => actualizarTipos(f, tipos)}
                   etiquetas={etiquetasTipoUnidad}
+                  soloEtiqueta
+                />
+              </td>
+              <td className="px-4 py-2">
+                <MultiSelectFiltro
+                  label="Ninguna en particular"
+                  opciones={opcionesUnidad}
+                  seleccionados={valorUnidades(f.clave).split(',').filter(Boolean)}
+                  onChange={ids => actualizarUnidades(f, ids)}
+                  etiquetas={etiquetasUnidad}
                   soloEtiqueta
                 />
               </td>
@@ -656,6 +678,7 @@ const TABS = ['General', 'Técnicos', 'Catálogo']
 
 export default function Configuracion({ usuario }) {
   const [items, setItems] = useState([])
+  const [unidades, setUnidades] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('General')
 
@@ -663,8 +686,12 @@ export default function Configuracion({ usuario }) {
 
   async function cargar() {
     setLoading(true)
-    const { data } = await supabase.from('configuracion').select('*').order('creado_en', { ascending: false })
+    const [{ data }, { data: unidadesData }] = await Promise.all([
+      supabase.from('configuracion').select('*').order('creado_en', { ascending: false }),
+      supabase.from('unidades').select('id, patente_serie, descripcion').eq('activo', true).order('descripcion'),
+    ])
     setItems(data || [])
+    setUnidades(unidadesData || [])
     setLoading(false)
   }
 
@@ -714,8 +741,10 @@ export default function Configuracion({ usuario }) {
             <DestinatariosChecklist
               empresaId={usuario.empresa_id}
               filas={porSeccion('checklist_destinatarios_mail')}
+              filasUnidades={porSeccion('checklist_destinatarios_unidades')}
               tiposUnidad={porSeccion('tipos_unidad').map(f => f.clave)}
               etiquetasTipoUnidad={Object.fromEntries(porSeccion('tipos_unidad').map(f => [f.clave, f.valor]))}
+              unidades={unidades}
               onChange={cargar}
             />
             <AlertasDocumentos
