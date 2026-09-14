@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { exportarXlsx } from '../lib/exportarXlsx'
 import { parseCsv } from '../lib/importarCsv'
 import { parseXlsx } from '../lib/importarXlsx'
+import { coincideConSinonimos } from '../lib/sinonimosTrabajo'
 import SelectConfig from '../components/SelectConfig'
 import MultiSelectFiltro from '../components/MultiSelectFiltro'
 import ConfirmModal from '../components/ConfirmModal'
@@ -524,9 +525,9 @@ function CatalogoTrabajos() {
     cargar()
   }
 
-  const q = busqueda.trim().toLowerCase()
+  const q = busqueda.trim()
   const trabajosFiltrados = q
-    ? trabajos.filter(t => t.descripcion?.toLowerCase().includes(q) || t.categoria?.toLowerCase().includes(q))
+    ? trabajos.filter(t => coincideConSinonimos(t.descripcion, q) || coincideConSinonimos(t.categoria, q))
     : trabajos
   const porCategoria = trabajosFiltrados.reduce((acc, t) => { (acc[t.categoria] ??= []).push(t); return acc }, {})
 
@@ -572,8 +573,7 @@ function CatalogoTrabajos() {
               required
             />
             {sugerenciasAbiertas && form.descripcion.trim().length >= 2 && (() => {
-              const q = form.descripcion.trim().toLowerCase()
-              const sugerencias = trabajos.filter(t => t.descripcion?.toLowerCase().includes(q)).slice(0, 8)
+              const sugerencias = trabajos.filter(t => coincideConSinonimos(t.descripcion, form.descripcion)).slice(0, 8)
               return sugerencias.length > 0 ? (
                 <div className="absolute z-10 top-full mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
                   <p className="px-3 py-1.5 text-xs text-amber-600 dark:text-amber-400 border-b border-gray-100 dark:border-gray-800">Ya existen trabajos parecidos:</p>
