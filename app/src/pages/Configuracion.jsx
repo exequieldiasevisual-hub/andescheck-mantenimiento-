@@ -448,6 +448,7 @@ function CatalogoTrabajos() {
   const [formAbierto, setFormAbierto] = useState(false)
   const [form, setForm] = useState({ categoria: '', descripcion: '', tiempo_estimado_hs: '1' })
   const [trabajoEliminar, setTrabajoEliminar] = useState(null)
+  const [busqueda, setBusqueda] = useState('')
 
   async function cargar() {
     setLoading(true)
@@ -522,12 +523,22 @@ function CatalogoTrabajos() {
     cargar()
   }
 
-  const porCategoria = trabajos.reduce((acc, t) => { (acc[t.categoria] ??= []).push(t); return acc }, {})
+  const q = busqueda.trim().toLowerCase()
+  const trabajosFiltrados = q
+    ? trabajos.filter(t => t.descripcion?.toLowerCase().includes(q) || t.categoria?.toLowerCase().includes(q))
+    : trabajos
+  const porCategoria = trabajosFiltrados.reduce((acc, t) => { (acc[t.categoria] ??= []).push(t); return acc }, {})
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div className="px-4 py-3 flex items-center justify-between">
+      <div className="px-4 py-3 flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">Catálogo de Trabajos</h2>
+        <input
+          value={busqueda}
+          onChange={e => setBusqueda(e.target.value)}
+          placeholder="Buscar por categoría o descripción…"
+          className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+        />
         <div className="flex gap-2">
           {trabajos.length === 0 && (
             <button onClick={cargarCatalogoEstandar} className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -567,6 +578,8 @@ function CatalogoTrabajos() {
         <p className="px-4 py-4 text-sm text-gray-400">Cargando…</p>
       ) : trabajos.length === 0 ? (
         <p className="px-4 py-4 text-sm text-gray-400">Sin trabajos cargados — usá "Cargar catálogo estándar" o agregalos a mano.</p>
+      ) : trabajosFiltrados.length === 0 ? (
+        <p className="px-4 py-4 text-sm text-gray-400">Ningún trabajo coincide con "{busqueda}".</p>
       ) : (
         Object.entries(porCategoria).map(([categoria, items]) => (
           <div key={categoria} className="border-t border-gray-100 dark:border-gray-800">
