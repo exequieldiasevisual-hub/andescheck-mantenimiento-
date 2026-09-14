@@ -6,6 +6,7 @@ import MotivoModal from '../components/MotivoModal'
 import MultiSelectFiltro from '../components/MultiSelectFiltro'
 import SelectConfig from '../components/SelectConfig'
 import BuscadorCatalogo from '../components/BuscadorCatalogo'
+import BuscadorUnidad from '../components/BuscadorUnidad'
 
 const VACIO = { id_unidad: '', descripcion: '', tipo_trigger: 'km', intervalo: '' }
 
@@ -387,6 +388,13 @@ function ElegirDestinoModal({ rutina, otAbierta, onClose, onListo }) {
 }
 
 const VACIO_PLAN = { descripcion: '', alcance: 'tipo_unidad', alcance_valor: '' }
+const ETIQUETAS_ALCANCE = {
+  tipo_unidad: 'Tipo de unidad',
+  mision: 'Misión',
+  centro_costo: 'Centro de costo',
+  patente: 'Unidad',
+  componente_tipo: 'Componente',
+}
 const VACIO_NIVEL = { nombre: '', tipo_trigger: 'km', intervalo: '' }
 
 // A diferencia de tipos_unidad/tipos_mision, el "tipo" de componente no vive
@@ -421,7 +429,7 @@ function SelectTipoComponente({ value, onChange }) {
   )
 }
 
-function PlanModal({ plan, onClose, onSaved }) {
+function PlanModal({ plan, unidades, onClose, onSaved }) {
   const [form, setForm] = useState(plan ? { ...plan } : VACIO_PLAN)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -461,6 +469,8 @@ function PlanModal({ plan, onClose, onSaved }) {
             className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm">
             <option value="tipo_unidad">Tipo de unidad</option>
             <option value="mision">Misión</option>
+            <option value="centro_costo">Centro de costo</option>
+            <option value="patente">Una unidad puntual (patente)</option>
             <option value="componente_tipo">Componente</option>
           </select>
         </div>
@@ -468,6 +478,17 @@ function PlanModal({ plan, onClose, onSaved }) {
           <SelectConfig label="Tipo de unidad *" seccion="tipos_unidad" value={form.alcance_valor} onChange={v => setField('alcance_valor', v)} required />
         ) : form.alcance === 'mision' ? (
           <SelectConfig label="Misión *" seccion="tipos_mision" value={form.alcance_valor} onChange={v => setField('alcance_valor', v)} dosColumnas={false} required />
+        ) : form.alcance === 'centro_costo' ? (
+          <SelectConfig label="Centro de costo *" seccion="centros_costo" value={form.alcance_valor} onChange={v => setField('alcance_valor', v)} required />
+        ) : form.alcance === 'patente' ? (
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Unidad *</label>
+            <BuscadorUnidad
+              unidades={unidades}
+              value={unidades.find(u => u.patente_serie === form.alcance_valor)?.id || ''}
+              onChange={id => setField('alcance_valor', unidades.find(u => u.id === id)?.patente_serie || '')}
+            />
+          </div>
         ) : (
           <SelectTipoComponente value={form.alcance_valor} onChange={v => setField('alcance_valor', v)} />
         )}
@@ -862,7 +883,7 @@ export default function RutinasMantenimiento({ usuario, abrirOt, filtroUnidadTex
                     (p.plan_niveles || []).filter(n => n.activo).sort((a, b) => a.orden - b.orden).map(n => ({ plan: p, nivel: n }))
                   ), [
                     { label: 'Plan', get: x => x.plan.descripcion },
-                    { label: 'Aplica a', get: x => `${x.plan.alcance === 'tipo_unidad' ? 'Tipo de unidad' : x.plan.alcance === 'mision' ? 'Misión' : 'Componente'}: ${x.plan.alcance_valor}` },
+                    { label: 'Aplica a', get: x => `${ETIQUETAS_ALCANCE[x.plan.alcance] ?? x.plan.alcance}: ${x.plan.alcance_valor}` },
                     { label: 'Nivel', get: x => x.nivel.nombre },
                     { label: 'Se repite cada', get: x => `${x.nivel.intervalo} ${LABEL_TRIGGER[x.nivel.tipo_trigger]}` },
                     { label: 'Tareas', get: x => x.nivel.cantidadTareas },
@@ -1081,7 +1102,7 @@ export default function RutinasMantenimiento({ usuario, abrirOt, filtroUnidadTex
                       <span className="text-gray-400 text-xs shrink-0">{expandido ? '▼' : '▶'}</span>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{p.descripcion}</span>
                       <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
-                        — {p.alcance === 'tipo_unidad' ? 'Tipo de unidad' : p.alcance === 'mision' ? 'Misión' : 'Componente'}: {p.alcance_valor} · {niveles.length} nivel(es)
+                        — {ETIQUETAS_ALCANCE[p.alcance] ?? p.alcance}: {p.alcance_valor} · {niveles.length} nivel(es)
                       </span>
                     </button>
                     <div className="flex items-center gap-3 shrink-0">
@@ -1192,6 +1213,7 @@ export default function RutinasMantenimiento({ usuario, abrirOt, filtroUnidadTex
       {planModalAbierto && (
         <PlanModal
           plan={planEditar}
+          unidades={unidades}
           onClose={() => setPlanModalAbierto(false)}
           onSaved={() => { setPlanModalAbierto(false); cargarPlanes() }}
         />
