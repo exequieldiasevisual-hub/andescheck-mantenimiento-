@@ -78,12 +78,31 @@ function Plantillas({ usuario }) {
 function HistorialEjecucion({ ejecucion }) {
   const [respuestas, setRespuestas] = useState(null)
   const [abierto, setAbierto] = useState(false)
+  const [imprimiendo, setImprimiendo] = useState(false)
 
   function toggle() {
     setAbierto(a => !a)
     if (!respuestas) {
       supabase.from('checklist_respuestas').select('respuesta, checklist_items(pregunta)').eq('id_ejecucion', ejecucion.id)
         .then(({ data }) => setRespuestas(data || []))
+    }
+  }
+
+  async function imprimir(e) {
+    e.stopPropagation()
+    setImprimiendo(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/imprimir-checklist?id_ejecucion=${ejecucion.id}`, {
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
+      })
+      if (!res.ok) throw new Error('No se pudo generar el PDF')
+      const blob = await res.blob()
+      window.open(URL.createObjectURL(blob), '_blank')
+    } catch {
+      alert('No se pudo generar el PDF del checklist')
+    } finally {
+      setImprimiendo(false)
     }
   }
 
@@ -96,10 +115,13 @@ function HistorialEjecucion({ ejecucion }) {
         </td>
         <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{ejecucion.checklist_plantillas?.nombre}</td>
         <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{ejecucion.usuarios?.nombre ?? 'Sin asignar'}</td>
-        <td className="px-5 py-3 text-right">
+        <td className="px-5 py-3 text-right whitespace-nowrap">
           {ejecucion.ubicacion_url && (
-            <a href={ejecucion.ubicacion_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-gray-600 dark:text-gray-400 hover:underline text-xs">📍</a>
+            <a href={ejecucion.ubicacion_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-gray-600 dark:text-gray-400 hover:underline text-xs mr-3">📍</a>
           )}
+          <button onClick={imprimir} disabled={imprimiendo} className="text-blue-600 hover:underline text-xs disabled:opacity-50">
+            {imprimiendo ? 'Generando…' : '🖨️ Imprimir'}
+          </button>
         </td>
       </tr>
       {abierto && (
