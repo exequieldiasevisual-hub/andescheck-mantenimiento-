@@ -376,10 +376,10 @@ function CargarDatosCostosModal({ mes, onClose, onGuardado }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Centro de costo</label>
-              <input list="centros-costo-lista" value={centroCosto} onChange={e => setCentroCosto(e.target.value)} className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
-              <datalist id="centros-costo-lista">
-                {centros.map(c => <option key={c} value={c} />)}
-              </datalist>
+              <select value={centroCosto} onChange={e => setCentroCosto(e.target.value)} className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900">
+                <option value="">Elegir…</option>
+                {centros.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Concepto</label>
