@@ -172,8 +172,11 @@ grant execute on function registrar_gasto_bitacora(uuid, text, numeric, text) to
 -- ---------------------------------------------------------------------
 -- rendir_viaje: el chofer asignado cierra su rendición y firma. Pasa a
 -- 'Rendido', queda esperando el OK del administrador.
+-- p_firma_url ahora tiene default null (ver fix_rendir_viaje_firma_opcional_offline.sql) —
+-- se dropea antes por si este archivo se re-corre después de ese fix.
 -- ---------------------------------------------------------------------
-create or replace function rendir_viaje(p_id_viaje uuid, p_firma_url text)
+drop function if exists rendir_viaje(uuid, text);
+create or replace function rendir_viaje(p_id_viaje uuid, p_firma_url text default null)
 returns jsonb language plpgsql security definer as $$
 declare
   v_viaje bitacora_viajes%rowtype;
@@ -194,12 +197,8 @@ begin
     return jsonb_build_object('ok', false, 'msg', 'Este viaje ya fue rendido');
   end if;
 
-  if p_firma_url is null or trim(p_firma_url) = '' then
-    return jsonb_build_object('ok', false, 'msg', 'Falta la firma');
-  end if;
-
   update bitacora_viajes
-     set estado = 'Rendido', firma_url = p_firma_url, fecha_rendicion = now()
+     set estado = 'Rendido', firma_url = coalesce(p_firma_url, firma_url), fecha_rendicion = now()
    where id = p_id_viaje;
 
   return jsonb_build_object('ok', true);
