@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { exportarXlsx } from '../lib/exportarXlsx'
+import { parseXlsx } from '../lib/importarXlsx'
 import MultiSelectFiltro from '../components/MultiSelectFiltro'
+import Modal from '../components/Modal'
 
 function money(v) {
   return `$${Number(v || 0).toLocaleString('es-AR')}`
@@ -141,6 +143,375 @@ function TablaReporte({ titulo, filas, columnas }) {
   )
 }
 
+function CargarDatosCostosModal({ mes, onClose, onGuardado }) {
+  const [sub, setSub] = useState('facturado')
+  const [unidades, setUnidades] = useState([])
+  const [choferes, setChoferes] = useState([])
+  const [error, setError] = useState('')
+  const [aviso, setAviso] = useState('')
+
+  // facturado masivo
+  const [filasFacturado, setFilasFacturado] = useState([])
+  const [guardandoFacturado, setGuardandoFacturado] = useState(false)
+
+  // costo anual por unidad
+  const [anioAnual, setAnioAnual] = useState(new Date().getFullYear())
+  const [unidadAnual, setUnidadAnual] = useState('')
+  const [conceptoAnual, setConceptoAnual] = useState('Seguro')
+  const [montoAnual, setMontoAnual] = useState('')
+
+  // sueldo chofer
+  const [choferSueldo, setChoferSueldo] = useState('')
+  const [montoSueldo, setMontoSueldo] = useState('')
+
+  // costo por centro
+  const [centroCosto, setCentroCosto] = useState('')
+  const [conceptoCentro, setConceptoCentro] = useState('')
+  const [montoCentro, setMontoCentro] = useState('')
+
+  useEffect(() => {
+    supabase.from('unidades').select('id, descripcion, patente_serie, centro_costo').eq('activo', true).order('descripcion')
+      .then(({ data }) => setUnidades(data || []))
+    supabase.from('usuarios').select('id, nombre').eq('rol', 'chofer').eq('activo', true).order('nombre')
+      .then(({ data }) => setChoferes(data || []))
+  }, [])
+
+  const centros = [...new Set(unidades.map(u => u.centro_costo).filter(Boolean))].sort()
+
+  async function leerExcelFacturado(e) {
+    const archivo = e.target.files[0]
+    if (!archivo) return
+    setError('')
+    try {
+      const filas = await parseXlsx(await archivo.arrayBuffer())
+      const encontradas = []
+      for (const fila of filas) {
+        const patente = String(fila['Patente'] ?? fila['patente'] ?? '').trim().toLowerCase()
+        const monto = Number(fila['Monto'] ?? fila['monto'] ?? 0)
+        if (!patente || !monto) continue
+        const u = unidades.find(x => x.patente_serie?.trim().toLowerCase() === patente)
+        if (!u) continue
+        encontradas.push({ id_unidad: u.id, unidad: u.descripcion, patente: u.patente_serie, monto })
+      }
+      setFilasFacturado(encontradas)
+      setAviso(`${encontradas.length} unidad(es) reconocida(s) del Excel. Revisá y guardá.`)
+    } catch (err) {
+      setError('No se pudo leer el archivo: ' + err.message)
+    }
+  }
+
+  async function guardarFacturadoMasivo() {
+    if (filasFacturado.length === 0) { setError('No hay filas cargadas'); return }
+    setGuardandoFacturado(true)
+    setError('')
+    const { data, error } = await supabase.rpc('guardar_facturado_masivo', {
+      p_filas: filasFacturado.map(f => ({ id_unidad: f.id_unidad, mes: `${mes}-01`, monto: f.monto })),
+    })
+    setGuardandoFacturado(false)
+    if (error) { setError(error.message); return }
+    if (!data?.ok) { setError(data?.msg ?? 'No se pudo guardar'); return }
+    setFilasFacturado([])
+    setAviso(`Se guardaron ${data.cargados} fila(s).`)
+    onGuardado()
+  }
+
+  async function guardarUnaFacturado(id_unidad, monto) {
+    setError('')
+    const { data, error } = await supabase.rpc('guardar_facturado_masivo', {
+      p_filas: [{ id_unidad, mes: `${mes}-01`, monto: Number(monto) || 0 }],
+    })
+    if (error) { setError(error.message); return }
+    if (!data?.ok) { setError(data?.msg ?? 'No se pudo guardar'); return }
+    onGuardado()
+  }
+
+  async function guardarCostoAnual() {
+    setError('')
+    if (!unidadAnual || !conceptoAnual.trim()) { setError('Faltan campos'); return }
+    const { data, error } = await supabase.rpc('guardar_costo_anual', {
+      p_id_unidad: unidadAnual, p_anio: Number(anioAnual), p_concepto: conceptoAnual.trim(), p_monto_anual: Number(montoAnual) || 0,
+    })
+    if (error) { setError(error.message); return }
+    if (!data?.ok) { setError(data?.msg ?? 'No se pudo guardar'); return }
+    setMontoAnual('')
+    setAviso('Costo anual guardado.')
+    onGuardado()
+  }
+
+  async function guardarSueldoChofer() {
+    setError('')
+    if (!choferSueldo) { setError('Elegí un chofer'); return }
+    const { data, error } = await supabase.rpc('guardar_sueldo_chofer', {
+      p_id_chofer: choferSueldo, p_mes: `${mes}-01`, p_monto: Number(montoSueldo) || 0,
+    })
+    if (error) { setError(error.message); return }
+    if (!data?.ok) { setError(data?.msg ?? 'No se pudo guardar'); return }
+    setMontoSueldo('')
+    setAviso('Sueldo del chofer guardado.')
+    onGuardado()
+  }
+
+  async function guardarCostoCentro() {
+    setError('')
+    if (!centroCosto.trim() || !conceptoCentro.trim()) { setError('Faltan campos'); return }
+    const { data, error } = await supabase.rpc('guardar_costo_centro', {
+      p_centro_costo: centroCosto.trim(), p_mes: `${mes}-01`, p_concepto: conceptoCentro.trim(), p_monto: Number(montoCentro) || 0,
+    })
+    if (error) { setError(error.message); return }
+    if (!data?.ok) { setError(data?.msg ?? 'No se pudo guardar'); return }
+    setConceptoCentro('')
+    setMontoCentro('')
+    setAviso('Costo del centro guardado.')
+    onGuardado()
+  }
+
+  const SUBTABS = [
+    { key: 'facturado', label: 'Facturado' },
+    { key: 'anual', label: 'Seguro / RTO / etc.' },
+    { key: 'sueldo', label: 'Sueldo chofer' },
+    { key: 'centro', label: 'Por centro de costo' },
+  ]
+
+  return (
+    <Modal titulo={`Cargar datos de costos — ${mes}`} onClose={onClose} ancho="max-w-2xl">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 mb-4 -mt-1">
+        {SUBTABS.map(t => (
+          <button key={t.key} type="button" onClick={() => { setSub(t.key); setError(''); setAviso('') }}
+            className={`px-3 py-2 text-xs font-medium border-b-2 ${sub === t.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 dark:text-gray-400'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>}
+      {aviso && <p className="text-sm text-green-600 dark:text-green-400 mb-3">{aviso}</p>}
+
+      {sub === 'facturado' && (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Excel (columnas: Patente, Monto)</label>
+            <input type="file" accept=".xlsx" onChange={leerExcelFacturado} className="text-sm" />
+          </div>
+          {filasFacturado.length > 0 && (
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg max-h-48 overflow-y-auto">
+              <table className="w-full text-sm">
+                <tbody>
+                  {filasFacturado.map(f => (
+                    <tr key={f.id_unidad} className="border-t border-gray-100 dark:border-gray-800 first:border-t-0">
+                      <td className="px-3 py-1.5">{f.patente} — {f.unidad}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">{money(f.monto)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {filasFacturado.length > 0 && (
+            <button type="button" onClick={guardarFacturadoMasivo} disabled={guardandoFacturado}
+              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50">
+              {guardandoFacturado ? 'Guardando…' : `Guardar ${filasFacturado.length} fila(s)`}
+            </button>
+          )}
+
+          <p className="text-xs text-gray-400 pt-2">O cargá el monto de cada unidad a mano:</p>
+          <div className="max-h-56 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-800">
+            {unidades.map(u => (
+              <FilaFacturadoManual key={u.id} unidad={u} onGuardar={guardarUnaFacturado} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sub === 'anual' && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-400">Se carga una vez por año, el sistema prorratea 1/12 cada mes solo.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Unidad</label>
+              <select value={unidadAnual} onChange={e => setUnidadAnual(e.target.value)} className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900">
+                <option value="">Elegir…</option>
+                {unidades.map(u => <option key={u.id} value={u.id}>{u.patente_serie} — {u.descripcion}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Año</label>
+              <input type="number" value={anioAnual} onChange={e => setAnioAnual(e.target.value)} className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Concepto</label>
+              <input value={conceptoAnual} onChange={e => setConceptoAnual(e.target.value)} placeholder="Seguro, RTO, Patente…" className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Monto anual</label>
+              <input type="number" value={montoAnual} onChange={e => setMontoAnual(e.target.value)} className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+            </div>
+          </div>
+          <button type="button" onClick={guardarCostoAnual} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Guardar</button>
+        </div>
+      )}
+
+      {sub === 'sueldo' && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-400">Monto mensual del chofer (sueldo + cargas sociales). Se reparte solo entre las unidades que manejó este mes.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Chofer</label>
+              <select value={choferSueldo} onChange={e => setChoferSueldo(e.target.value)} className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900">
+                <option value="">Elegir…</option>
+                {choferes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Monto del mes</label>
+              <input type="number" value={montoSueldo} onChange={e => setMontoSueldo(e.target.value)} className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+            </div>
+          </div>
+          <button type="button" onClick={guardarSueldoChofer} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Guardar</button>
+        </div>
+      )}
+
+      {sub === 'centro' && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-400">Costos que no son de una unidad puntual (sueldo técnicos, servicios, impuesto municipal…). Se reparten por partes iguales entre las unidades activas de ese centro de costo.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Centro de costo</label>
+              <input list="centros-costo-lista" value={centroCosto} onChange={e => setCentroCosto(e.target.value)} className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+              <datalist id="centros-costo-lista">
+                {centros.map(c => <option key={c} value={c} />)}
+              </datalist>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Concepto</label>
+              <input value={conceptoCentro} onChange={e => setConceptoCentro(e.target.value)} placeholder="Sueldo técnicos, servicios…" className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Monto del mes</label>
+              <input type="number" value={montoCentro} onChange={e => setMontoCentro(e.target.value)} className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+            </div>
+          </div>
+          <button type="button" onClick={guardarCostoCentro} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Guardar</button>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+function FilaFacturadoManual({ unidad, onGuardar }) {
+  const [monto, setMonto] = useState('')
+  const [guardando, setGuardando] = useState(false)
+
+  async function guardar() {
+    setGuardando(true)
+    await onGuardar(unidad.id, monto)
+    setGuardando(false)
+  }
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5">
+      <span className="text-sm flex-1 truncate">{unidad.patente_serie} — {unidad.descripcion}</span>
+      <input type="number" value={monto} onChange={e => setMonto(e.target.value)} placeholder="Monto" className="w-28 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm bg-white dark:bg-gray-900" />
+      <button type="button" onClick={guardar} disabled={guardando || monto === ''} className="text-xs text-blue-600 hover:underline disabled:opacity-40 shrink-0">Guardar</button>
+    </div>
+  )
+}
+
+function ResultadoNeto({ mes }) {
+  const [datos, setDatos] = useState(null)
+  const [error, setError] = useState('')
+  const [modalAbierto, setModalAbierto] = useState(false)
+
+  function cargar() {
+    setError('')
+    supabase.rpc('get_resultado_neto', { p_mes: `${mes}-01` }).then(({ data, error }) => {
+      if (error) setError(error.message)
+      else if (!data?.ok) setError(data?.msg ?? 'No se pudo cargar el resultado neto')
+      else setDatos(data)
+    })
+  }
+
+  useEffect(() => { setDatos(null); cargar() }, [mes])
+
+  function exportar() {
+    if (!datos) return
+    exportarXlsx(`resultado_neto_${mes}`, datos.unidades, [
+      { label: 'Unidad', get: f => f.unidad },
+      { label: 'Patente', get: f => f.patente },
+      { label: 'Centro de costo', get: f => f.centro_costo },
+      { label: 'Facturado', get: f => f.facturado },
+      { label: 'Combustible', get: f => f.combustible },
+      { label: 'Mantenimiento', get: f => f.mantenimiento },
+      { label: 'Anual prorrateado', get: f => f.anual_prorateado },
+      { label: 'Sueldo chofer prorrateado', get: f => f.sueldo_chofer_prorateado },
+      { label: 'Costo centro prorrateado', get: f => f.costo_centro_prorateado },
+      { label: 'Km', get: f => f.km },
+      { label: 'Resultado', get: f => f.resultado },
+    ])
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">Resultado neto por unidad</h2>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setModalAbierto(true)} className="text-sm text-blue-600 hover:underline">Cargar datos</button>
+          {datos && <button onClick={exportar} className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-lg">↓ Excel</button>}
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {!datos && !error && <p className="text-sm text-gray-400">Cargando…</p>}
+
+      {datos && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          {datos.unidades.length === 0 ? (
+            <p className="px-5 py-8 text-sm text-gray-400 text-center">No hay unidades activas</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900">
+                  <tr className="text-xs text-gray-400 dark:text-gray-500 font-medium">
+                    <th className="px-4 py-3 text-left">Unidad</th>
+                    <th className="px-4 py-3 text-left">Centro</th>
+                    <th className="px-4 py-3 text-right">Facturado</th>
+                    <th className="px-4 py-3 text-right">Combustible</th>
+                    <th className="px-4 py-3 text-right">Mantenim.</th>
+                    <th className="px-4 py-3 text-right">Anual prorrat.</th>
+                    <th className="px-4 py-3 text-right">Chofer prorrat.</th>
+                    <th className="px-4 py-3 text-right">Centro prorrat.</th>
+                    <th className="px-4 py-3 text-right">Km</th>
+                    <th className="px-4 py-3 text-right">Resultado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {datos.unidades.map(u => (
+                    <tr key={u.id_unidad} className="border-t border-gray-100 dark:border-gray-800">
+                      <td className="px-4 py-3 text-gray-900 dark:text-gray-100 font-medium">{u.patente ?? 's/patente'} — {u.unidad}</td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{u.centro_costo ?? '—'}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{money(u.facturado)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.combustible)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.mantenimiento)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.anual_prorateado)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.sueldo_chofer_prorateado)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.costo_centro_prorateado)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{u.km ?? '—'}</td>
+                      <td className={`px-4 py-3 text-right tabular-nums font-semibold ${Number(u.resultado) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{money(u.resultado)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {modalAbierto && (
+        <CargarDatosCostosModal mes={mes} onClose={() => setModalAbierto(false)} onGuardado={cargar} />
+      )}
+    </div>
+  )
+}
+
 function ReporteCostos({ mes }) {
   const [datos, setDatos] = useState(null)
   const [error, setError] = useState('')
@@ -205,6 +576,8 @@ function ReporteCostos({ mes }) {
           </div>
 
           <TablaReporte titulo="Por unidad" filas={datos.por_unidad} columnas={{ etiqueta: f => `${f.patente ?? 's/patente'} — ${f.unidad}` }} />
+
+          <ResultadoNeto mes={mes} />
         </>
       )}
     </div>
