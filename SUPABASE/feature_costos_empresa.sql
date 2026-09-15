@@ -269,7 +269,7 @@ begin
         group by bv.id_unidad
       ) sueldo on true
       left join lateral (
-        select sum(cec.monto) / nullif(cant_u.n, 0) as total
+        select sum(cec.monto / nullif(cant_u.n, 0)) as total
         from costos_empresa_centro cec
         join lateral (
           select count(*) as n from unidades u2
