@@ -245,7 +245,7 @@ begin
       from unidades u
       left join costos_empresa_facturado f on f.id_unidad = u.id and f.mes = v_desde
       left join lateral (
-        select sum(cc.precio_total) as total from combustible_cargas cc
+        select sum(coalesce(cc.precio_total, cc.litros * cc.precio_unitario)) as total from combustible_cargas cc
         where cc.id_unidad = u.id and cc.fecha >= v_desde and cc.fecha < v_hasta
       ) comb on true
       left join lateral (
