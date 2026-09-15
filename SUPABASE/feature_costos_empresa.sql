@@ -231,7 +231,7 @@ begin
         'unidad', u.descripcion,
         'patente', u.patente_serie,
         'centro_costo', u.centro_costo,
-        'facturado', f.facturado,
+        'facturado', f.monto,
         'combustible', comb.total,
         'mantenimiento', mant.total,
         'anual_prorateado', anual.total,
@@ -239,7 +239,7 @@ begin
         'costo_centro_prorateado', centro.total,
         'km', bit.km,
         'resultado',
-          coalesce(f.facturado, 0) - coalesce(comb.total, 0) - coalesce(mant.total, 0)
+          coalesce(f.monto, 0) - coalesce(comb.total, 0) - coalesce(mant.total, 0)
           - coalesce(anual.total, 0) - coalesce(sueldo.total, 0) - coalesce(centro.total, 0)
       ) order by u.descripcion)
       from unidades u
