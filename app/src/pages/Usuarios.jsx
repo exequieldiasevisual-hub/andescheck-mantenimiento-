@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Modal from '../components/Modal'
 
-const ROLES = ['administrador', 'supervisor', 'jefe_taller', 'tecnico', 'auditor']
+const ROLES = ['administrador', 'supervisor', 'jefe_taller', 'tecnico', 'chofer', 'auditor']
 
 function UsuarioModal({ onClose, onSaved }) {
   const [form, setForm] = useState({ usuario: '', password: '', nombre: '', apellido: '', email: '', dni: '', puesto: '', rol: 'tecnico' })

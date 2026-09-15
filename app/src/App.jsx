@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { getUsuarioActual } from './lib/auth'
 import Login from './pages/Login'
-import Sidebar, { PAGINAS_TECNICO } from './components/Sidebar'
+import Sidebar, { PAGINAS_TECNICO, PAGINAS_CHOFER } from './components/Sidebar'
 import PanelEmpresas from './pages/PanelEmpresas'
 import Dashboard from './pages/Dashboard'
 import Unidades from './pages/Unidades'
@@ -16,6 +16,7 @@ import Novedades from './pages/Novedades'
 import Combustible from './pages/Combustible'
 import Checklists from './pages/Checklists'
 import RutinasMantenimiento from './pages/RutinasMantenimiento'
+import Bitacora from './pages/Bitacora'
 import Proveedores from './pages/Proveedores'
 import Secuencias from './pages/Secuencias'
 import Documentos from './pages/Documentos'
@@ -33,6 +34,7 @@ const TITULOS = {
   combustible: 'Combustible',
   checklists: 'Checklists',
   rutinas: 'Rutinas de Mantenimiento',
+  bitacora: 'Bitácora',
   stock: 'Stock',
   herramientas: 'Herramientas',
   documentos: 'Documentos',
@@ -77,7 +79,9 @@ export default function App() {
   // restringida ni por un instante. El super_admin no tiene esta
   // restricción: además del Panel de Empresas, opera normalmente su
   // propia empresa interna (AndesCheck Admin) como cualquier administrador.
-  const paginaEfectiva = usuario.rol === 'tecnico' && !PAGINAS_TECNICO.includes(pagina) ? 'ot' : pagina
+  const paginaEfectiva = usuario.rol === 'tecnico' && !PAGINAS_TECNICO.includes(pagina) ? 'ot'
+    : usuario.rol === 'chofer' && !PAGINAS_CHOFER.includes(pagina) ? 'bitacora'
+    : pagina
 
   function renderPagina() {
     if (paginaEfectiva === 'empresas') return <PanelEmpresas />
@@ -94,6 +98,7 @@ export default function App() {
     if (paginaEfectiva === 'combustible') return <Combustible usuario={usuario} />
     if (paginaEfectiva === 'checklists') return <Checklists usuario={usuario} />
     if (paginaEfectiva === 'rutinas') return <RutinasMantenimiento usuario={usuario} abrirOt={abrirOtDesdeNovedad} filtroUnidadTextoInicial={filtroUnidadTextoInicial} />
+    if (paginaEfectiva === 'bitacora') return <Bitacora usuario={usuario} />
     if (paginaEfectiva === 'proveedores') return <Proveedores usuario={usuario} />
     if (paginaEfectiva === 'secuencias') return <Secuencias usuario={usuario} />
     if (paginaEfectiva === 'documentos') return <Documentos usuario={usuario} filtroUnidadInicial={filtroUnidadInicial} />

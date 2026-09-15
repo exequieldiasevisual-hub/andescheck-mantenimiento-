@@ -31,6 +31,7 @@ const SECCIONES = [
       { key: 'combustible', label: 'Combustible' },
       { key: 'checklists', label: 'Checklists' },
       { key: 'rutinas', label: 'Rutinas de Mantenimiento' },
+      { key: 'bitacora', label: 'Bitácora' },
     ],
   },
   {
@@ -57,15 +58,19 @@ const SECCIONES = [
 // El técnico solo trabaja sus OT, carga novedades y consulta herramientas —
 // nada de maestros ni métricas generales de la empresa.
 export const PAGINAS_TECNICO = ['ot', 'novedades', 'herramientas']
+// El chofer solo carga gastos y rinde sus propios viajes en la Bitácora.
+export const PAGINAS_CHOFER = ['bitacora']
 
 export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
   const { tema, alternar } = useTema()
   const [unidades, setUnidades] = useState([])
   const [seccionesManual, setSeccionesManual] = useState({})
   const [usarSecuencias, setUsarSecuencias] = useState(false)
+  const [usarBitacora, setUsarBitacora] = useState(false)
   const [abiertoMobile, setAbiertoMobile] = useState(false)
   const [escanerAbierto, setEscanerAbierto] = useState(false)
   const esTecnico = usuario?.rol === 'tecnico'
+  const esChofer = usuario?.rol === 'chofer'
   const esSuperAdmin = usuario?.rol === 'super_admin'
   // "Plataforma" (Panel de Empresas) solo la ve el super_admin — el resto
   // de las secciones se comportan igual que para un administrador normal,
@@ -75,18 +80,25 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
       ...s,
       items: s.items
         .filter(i => !esTecnico || PAGINAS_TECNICO.includes(i.key))
+        .filter(i => !esChofer || PAGINAS_CHOFER.includes(i.key))
         .filter(i => esSuperAdmin || i.key !== 'empresas')
-        .filter(i => i.key !== 'secuencias' || usarSecuencias),
+        .filter(i => i.key !== 'secuencias' || usarSecuencias)
+        .filter(i => i.key !== 'bitacora' || usarBitacora),
     }))
     .filter(s => s.items.length > 0)
 
   useEffect(() => {
     if (esTecnico) return
-    supabase.from('unidades').select('id, descripcion, patente_serie').eq('activo', true).order('patente_serie')
-      .then(({ data }) => setUnidades(data || []))
-    supabase.from('configuracion').select('valor').eq('seccion', 'parametros').eq('clave', 'usar_secuencias').maybeSingle()
-      .then(({ data }) => setUsarSecuencias(data?.valor === 'true'))
-  }, [esTecnico])
+    if (!esChofer) {
+      supabase.from('unidades').select('id, descripcion, patente_serie').eq('activo', true).order('patente_serie')
+        .then(({ data }) => setUnidades(data || []))
+    }
+    supabase.from('configuracion').select('clave, valor').eq('seccion', 'parametros').in('clave', ['usar_secuencias', 'usar_bitacora'])
+      .then(({ data }) => {
+        setUsarSecuencias(data?.find(d => d.clave === 'usar_secuencias')?.valor === 'true')
+        setUsarBitacora(data?.find(d => d.clave === 'usar_bitacora')?.valor === 'true')
+      })
+  }, [esTecnico, esChofer])
 
   function irA(key) {
     setPagina(key)

@@ -111,6 +111,27 @@ function ToggleUsarSecuencias({ empresaId, activo, onChange }) {
   )
 }
 
+function ToggleUsarBitacora({ empresaId, activo, onChange }) {
+  async function guardar(e) {
+    await supabase.from('configuracion').upsert({ empresa_id: empresaId, seccion: 'parametros', clave: 'usar_bitacora', valor: String(e.target.checked) })
+    onChange()
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+      <label className="flex items-start gap-2 text-sm cursor-pointer">
+        <input type="checkbox" checked={activo} onChange={guardar} className="mt-0.5" />
+        <span>
+          <span className="font-medium text-gray-900 dark:text-gray-100">Usar Bitácora</span>
+          <span className="block text-xs text-gray-400 mt-0.5">
+            Muestra "Bitácora" en el menú — registro de viajes con viáticos, gastos con foto de ticket, y firma del chofer al rendir. Requiere el rol "chofer" para los usuarios que van a cargar gastos.
+          </span>
+        </span>
+      </label>
+    </div>
+  )
+}
+
 // --- Tabla Código + Descripción (Centros de Costo, Tipos de Unidad, Ciudades) ---
 function TablaCodigoDescripcion({ titulo, seccion, empresaId, filas, onChange }) {
   const [filaEliminar, setFilaEliminar] = useState(null)
@@ -731,6 +752,7 @@ export default function Configuracion({ usuario }) {
           <>
             <ParametrosGenerales empresaId={usuario.empresa_id} valores={parametros} onChange={cargar} razonSocialActual={usuario.empresas?.razon_social} logoActual={usuario.empresas?.logo_url} />
             <ToggleUsarSecuencias empresaId={usuario.empresa_id} activo={parametros.usar_secuencias === 'true'} onChange={cargar} />
+            <ToggleUsarBitacora empresaId={usuario.empresa_id} activo={parametros.usar_bitacora === 'true'} onChange={cargar} />
             <TablaCodigoDescripcion titulo="Centros de Costo" seccion="centros_costo" empresaId={usuario.empresa_id} filas={porSeccion('centros_costo')} onChange={cargar} />
             <TablaCodigoDescripcion titulo="Tipos de Unidad" seccion="tipos_unidad" empresaId={usuario.empresa_id} filas={porSeccion('tipos_unidad')} onChange={cargar} />
             <TablaCodigoDescripcion titulo="Ciudades" seccion="ciudades" empresaId={usuario.empresa_id} filas={porSeccion('ciudades')} onChange={cargar} />
