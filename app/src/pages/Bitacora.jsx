@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import SignatureCanvas from 'react-signature-canvas'
 import { supabase } from '../lib/supabase'
+import { useOnline, encolarRpc } from '../lib/offline'
 import Modal from '../components/Modal'
 import ConfirmModal from '../components/ConfirmModal'
 import BuscadorUnidad from '../components/BuscadorUnidad'
@@ -138,12 +139,22 @@ function AgregarGastoModal({ viaje, empresaId, onClose, onSaved }) {
   const [foto, setFoto] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const online = useOnline()
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!concepto.trim() || monto === '') { setError('Faltan campos obligatorios'); return }
     setSaving(true)
     setError('')
+
+    if (!online) {
+      encolarRpc('registrar_gasto_bitacora', {
+        p_id_viaje: viaje.id, p_concepto: concepto.trim(), p_monto: Number(monto), p_foto_url: null,
+      }, `Gasto: ${concepto.trim()} — ${viaje.destino}`)
+      setSaving(false)
+      onSaved(foto ? 'sin_conexion_con_foto' : 'sin_conexion')
+      return
+    }
 
     let foto_url = null
     if (foto) {
@@ -165,6 +176,11 @@ function AgregarGastoModal({ viaje, empresaId, onClose, onSaved }) {
   return (
     <Modal titulo={`Nuevo gasto — ${viaje.destino}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
+        {!online && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-2">
+            Sin conexión: el gasto se guarda igual y se sincroniza solo, pero la foto del ticket no se va a poder adjuntar.
+          </p>
+        )}
         <div>
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Concepto *</label>
           <input value={concepto} onChange={e => setConcepto(e.target.value)} placeholder="Ej: Almuerzo"
@@ -200,14 +216,22 @@ function RendirViajeModal({ viaje, empresaId, onClose, onSaved }) {
   const padRef = useRef(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const online = useOnline()
 
   const totalGastado = (viaje.gastos || []).reduce((s, g) => s + Number(g.monto), 0)
   const sobra = Number(viaje.viaticos_monto) - totalGastado
 
   async function confirmar() {
-    if (padRef.current.isEmpty()) { setError('Falta la firma'); return }
+    if (online && padRef.current.isEmpty()) { setError('Falta la firma'); return }
     setSaving(true)
     setError('')
+
+    if (!online) {
+      encolarRpc('rendir_viaje', { p_id_viaje: viaje.id, p_firma_url: null }, `Rendición: ${viaje.destino}`)
+      setSaving(false)
+      onSaved('sin_conexion')
+      return
+    }
 
     const dataUrl = padRef.current.getCanvas().toDataURL('image/png')
     const blob = await (await fetch(dataUrl)).blob()
@@ -235,13 +259,19 @@ function RendirViajeModal({ viaje, empresaId, onClose, onSaved }) {
           </p>
         </div>
 
-        <div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Firma</p>
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white">
-            <SignatureCanvas ref={padRef} penColor="black" canvasProps={{ width: 400, height: 150, className: 'w-full' }} />
+        {online ? (
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Firma</p>
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white">
+              <SignatureCanvas ref={padRef} penColor="black" canvasProps={{ width: 400, height: 150, className: 'w-full' }} />
+            </div>
+            <button type="button" onClick={() => padRef.current?.clear()} className="text-xs text-blue-600 hover:underline mt-1">Limpiar firma</button>
           </div>
-          <button type="button" onClick={() => padRef.current?.clear()} className="text-xs text-blue-600 hover:underline mt-1">Limpiar firma</button>
-        </div>
+        ) : (
+          <p className="text-xs text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-2">
+            Sin conexión: la rendición se guarda igual y se sincroniza sola, pero la firma no se va a poder registrar en este momento.
+          </p>
+        )}
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
@@ -268,6 +298,13 @@ export default function Bitacora({ usuario }) {
   const [rendirViajeSel, setRendirViajeSel] = useState(null)
   const [viajeEliminar, setViajeEliminar] = useState(null)
   const [error, setError] = useState('')
+  const [aviso, setAviso] = useState('')
+
+  function manejarGuardadoOffline(signal) {
+    if (signal === 'sin_conexion_con_foto') setAviso('Guardado sin conexión — se sincroniza solo. La foto del ticket no se pudo adjuntar.')
+    else if (signal === 'sin_conexion') setAviso('Guardado sin conexión — se sincroniza solo.')
+    else setAviso('')
+  }
 
   async function cargar() {
     setLoading(true)
@@ -319,6 +356,7 @@ export default function Bitacora({ usuario }) {
 
       <div className="p-6 space-y-3">
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {aviso && <p className="text-sm text-amber-600 dark:text-amber-400">{aviso}</p>}
         {loading ? (
           <p className="text-sm text-gray-400 text-center py-8">Cargando…</p>
         ) : viajes.length === 0 ? (
@@ -401,7 +439,7 @@ export default function Bitacora({ usuario }) {
           viaje={gastoViaje}
           empresaId={usuario.empresa_id}
           onClose={() => setGastoViaje(null)}
-          onSaved={() => { setGastoViaje(null); cargar() }}
+          onSaved={(signal) => { setGastoViaje(null); manejarGuardadoOffline(signal); cargar() }}
         />
       )}
 
@@ -410,7 +448,7 @@ export default function Bitacora({ usuario }) {
           viaje={rendirViajeSel}
           empresaId={usuario.empresa_id}
           onClose={() => setRendirViajeSel(null)}
-          onSaved={() => { setRendirViajeSel(null); cargar() }}
+          onSaved={(signal) => { setRendirViajeSel(null); manejarGuardadoOffline(signal); cargar() }}
         />
       )}
 
