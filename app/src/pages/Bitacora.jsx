@@ -213,6 +213,61 @@ function AgregarGastoModal({ viaje, empresaId, onClose, onSaved }) {
   )
 }
 
+function EditarGastoModal({ gasto, onClose, onSaved }) {
+  const [concepto, setConcepto] = useState(gasto.concepto)
+  const [monto, setMonto] = useState(String(gasto.monto))
+  const [motivo, setMotivo] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!concepto.trim() || monto === '') { setError('Faltan campos obligatorios'); return }
+    if (!motivo.trim()) { setError('Falta el motivo de la modificación'); return }
+    setSaving(true)
+    setError('')
+    const { data, error } = await supabase.rpc('editar_gasto_bitacora', {
+      p_id_gasto: gasto.id, p_concepto: concepto.trim(), p_monto: Number(monto), p_motivo: motivo.trim(),
+    })
+    setSaving(false)
+    if (error) { setError(error.message); return }
+    if (!data?.ok) { setError(data?.msg ?? 'No se pudo editar el gasto'); return }
+    onSaved()
+  }
+
+  return (
+    <Modal titulo="Editar gasto" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Concepto *</label>
+          <input value={concepto} onChange={e => setConcepto(e.target.value)}
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" required />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Monto *</label>
+          <input type="number" step="0.01" value={monto} onChange={e => setMonto(e.target.value)}
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" required />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Motivo de la modificación *</label>
+          <textarea value={motivo} onChange={e => setMotivo(e.target.value)} rows={2}
+            placeholder="Ej: se cargó mal el monto del ticket"
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" required />
+        </div>
+
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancelar</button>
+          <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50">
+            {saving ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 function RendirViajeModal({ viaje, empresaId, onClose, onSaved }) {
   const padRef = useRef(null)
   const [error, setError] = useState('')
@@ -296,6 +351,7 @@ export default function Bitacora({ usuario }) {
   const [loading, setLoading] = useState(true)
   const [nuevoViajeAbierto, setNuevoViajeAbierto] = useState(false)
   const [gastoViaje, setGastoViaje] = useState(null)
+  const [gastoEditar, setGastoEditar] = useState(null)
   const [rendirViajeSel, setRendirViajeSel] = useState(null)
   const [viajeEliminar, setViajeEliminar] = useState(null)
   const [error, setError] = useState('')
@@ -310,7 +366,7 @@ export default function Bitacora({ usuario }) {
   async function cargar() {
     setLoading(true)
     const { data: viajesData } = await supabase.from('bitacora_viajes')
-      .select('*, unidades(descripcion, patente_serie), chofer:usuarios!bitacora_viajes_id_chofer_fkey(nombre), gastos:bitacora_gastos(id, concepto, monto, foto_url)')
+      .select('*, unidades(descripcion, patente_serie), chofer:usuarios!bitacora_viajes_id_chofer_fkey(nombre), gastos:bitacora_gastos(id, concepto, monto, foto_url, motivo_edicion)')
       .order('fecha', { ascending: false })
     setViajes(viajesData || [])
 
@@ -378,7 +434,7 @@ export default function Bitacora({ usuario }) {
       </div>
       <strong>GASTOS</strong>
       <table><thead><tr><th>Concepto</th><th>Monto</th><th>Ticket</th></tr></thead><tbody>
-        ${(viaje.gastos || []).map(g => `<tr><td>${g.concepto}</td><td>${moneda(g.monto)}</td><td>${g.foto_url ? `<img class="ticket" src="${g.foto_url}" />` : '—'}</td></tr>`).join('')}
+        ${(viaje.gastos || []).map(g => `<tr><td>${g.concepto}${g.motivo_edicion ? `<br><small style="color:#b45309">Editado: ${g.motivo_edicion}</small>` : ''}</td><td>${moneda(g.monto)}</td><td>${g.foto_url ? `<img class="ticket" src="${g.foto_url}" />` : '—'}</td></tr>`).join('')}
       </tbody></table>
       <div class="total">Gastado: ${moneda(totalGastado)} · ${sobra >= 0 ? 'Sobra' : 'Excedido'}: ${moneda(Math.abs(sobra))}</div>
       ${viaje.firma_url ? `<strong>FIRMA</strong><br><img class="firma" src="${viaje.firma_url}" />` : ''}
@@ -450,6 +506,10 @@ export default function Bitacora({ usuario }) {
                       <p key={g.id} className="text-xs text-gray-600 dark:text-gray-400">
                         • {g.concepto}: {moneda(g.monto)}
                         {g.foto_url && <a href={g.foto_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline ml-1">Ver ticket</a>}
+                        {(esChofer || puedeGestionar) && v.estado === 'En_curso' && (
+                          <button type="button" onClick={() => setGastoEditar(g)} title="Editar gasto" className="text-gray-400 hover:text-blue-600 ml-1">✏️</button>
+                        )}
+                        {g.motivo_edicion && <span className="text-amber-600 dark:text-amber-400 ml-1" title={`Editado: ${g.motivo_edicion}`}>(editado)</span>}
                       </p>
                     ))}
                   </div>
@@ -495,6 +555,14 @@ export default function Bitacora({ usuario }) {
           empresaId={usuario.empresa_id}
           onClose={() => setGastoViaje(null)}
           onSaved={(signal) => { setGastoViaje(null); manejarGuardadoOffline(signal); cargar() }}
+        />
+      )}
+
+      {gastoEditar && (
+        <EditarGastoModal
+          gasto={gastoEditar}
+          onClose={() => setGastoEditar(null)}
+          onSaved={() => { setGastoEditar(null); cargar() }}
         />
       )}
 
