@@ -5,6 +5,7 @@ import { useOnline, encolarRpc } from '../lib/offline'
 import Modal from '../components/Modal'
 import ConfirmModal from '../components/ConfirmModal'
 import BuscadorUnidad from '../components/BuscadorUnidad'
+import logoAndesCheck from '../assets/andescheck-logo.svg'
 
 const ESTADO_COLOR = {
   En_curso: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -326,12 +327,65 @@ export default function Bitacora({ usuario }) {
 
   useEffect(() => { cargar() }, [])
 
+  // Se actualiza sola cuando cambia algo en la Bitácora desde otra sesión
+  // (ej: el chofer rinde un viaje y el administrador lo ve sin recargar).
+  useEffect(() => {
+    const canal = supabase
+      .channel('bitacora_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bitacora_viajes' }, () => cargar())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bitacora_gastos' }, () => cargar())
+      .subscribe()
+    return () => { supabase.removeChannel(canal) }
+  }, [])
+
   async function aprobar(viaje) {
     setError('')
     const { data, error } = await supabase.rpc('aprobar_viaje', { p_id_viaje: viaje.id })
     if (error) { setError(error.message); return }
     if (!data?.ok) { setError(data?.msg ?? 'No se pudo aprobar'); return }
     cargar()
+  }
+
+  function imprimirViaje(viaje) {
+    const totalGastado = (viaje.gastos || []).reduce((s, g) => s + Number(g.monto), 0)
+    const sobra = Number(viaje.viaticos_monto) - totalGastado
+    const w = window.open('', '_blank')
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Bitácora — ${viaje.destino}</title>
+      <style>
+        body{font-family:Arial,sans-serif;font-size:13px;color:#222;padding:24px}
+        .logo{text-align:center;margin-bottom:12px}
+        .logo img{height:48px}
+        .header{border-bottom:2px solid #E8821A;padding-bottom:12px;margin-bottom:16px}
+        .info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+        table{width:100%;border-collapse:collapse;margin-bottom:16px}
+        th{background:#2D3748;color:#fff;padding:7px 10px;text-align:left;font-size:11px}
+        td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:top}
+        .total{text-align:right;font-weight:700;font-size:16px}
+        .ticket{max-width:160px;max-height:160px;display:block;margin-top:4px}
+        .firma{max-width:300px;max-height:150px;border:1px solid #ccc;margin-top:6px}
+        .footer{margin-top:24px;text-align:center;font-size:10px;color:#a0aec0}
+        @media print{button{display:none}}
+      </style></head><body>
+      <div class="logo"><img src="${new URL(logoAndesCheck, window.location.origin).href}" alt="AndesCheck" /></div>
+      <div class="header"><strong>BITÁCORA — ${viaje.origen ? `${viaje.origen} → ` : ''}${viaje.destino}</strong></div>
+      <div class="info">
+        <div><strong>Unidad:</strong> ${[viaje.unidades?.patente_serie, viaje.unidades?.descripcion].filter(Boolean).join(' — ')}</div>
+        <div><strong>Chofer:</strong> ${viaje.chofer?.nombre ?? ''}</div>
+        <div><strong>Fecha:</strong> ${new Date(viaje.fecha).toLocaleDateString()}</div>
+        <div><strong>Estado:</strong> ${ESTADO_LABEL[viaje.estado] ?? viaje.estado}</div>
+        <div><strong>Km:</strong> ${viaje.km ?? '—'}</div>
+        <div><strong>Viáticos:</strong> ${moneda(viaje.viaticos_monto)} (${viaje.viaticos_metodo || '—'})</div>
+      </div>
+      <strong>GASTOS</strong>
+      <table><thead><tr><th>Concepto</th><th>Monto</th><th>Ticket</th></tr></thead><tbody>
+        ${(viaje.gastos || []).map(g => `<tr><td>${g.concepto}</td><td>${moneda(g.monto)}</td><td>${g.foto_url ? `<img class="ticket" src="${g.foto_url}" />` : '—'}</td></tr>`).join('')}
+      </tbody></table>
+      <div class="total">Gastado: ${moneda(totalGastado)} · ${sobra >= 0 ? 'Sobra' : 'Excedido'}: ${moneda(Math.abs(sobra))}</div>
+      ${viaje.firma_url ? `<strong>FIRMA</strong><br><img class="firma" src="${viaje.firma_url}" />` : ''}
+      <div class="footer">Powered by AndesCheck</div>
+      <script>window.print()<\/script>
+      </body></html>`)
+    w.document.close()
   }
 
   async function eliminar() {
@@ -406,6 +460,7 @@ export default function Bitacora({ usuario }) {
                 )}
 
                 <div className="flex gap-3 mt-3">
+                  <button onClick={() => imprimirViaje(v)} className="text-xs text-gray-500 dark:text-gray-400 hover:underline">🖨 Imprimir / PDF</button>
                   {esChofer && v.estado === 'En_curso' && (
                     <>
                       <button onClick={() => setGastoViaje(v)} className="text-xs text-blue-600 hover:underline">+ Agregar gasto</button>

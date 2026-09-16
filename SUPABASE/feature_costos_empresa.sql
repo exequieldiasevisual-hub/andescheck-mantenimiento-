@@ -234,12 +234,13 @@ begin
         'facturado', f.monto,
         'combustible', comb.total,
         'mantenimiento', mant.total,
+        'otros_gastos', otros.total,
         'anual_prorateado', anual.total,
         'sueldo_chofer_prorateado', sueldo.total,
         'costo_centro_prorateado', centro.total,
         'km', bit.km,
         'resultado',
-          coalesce(f.monto, 0) - coalesce(comb.total, 0) - coalesce(mant.total, 0)
+          coalesce(f.monto, 0) - coalesce(comb.total, 0) - coalesce(mant.total, 0) - coalesce(otros.total, 0)
           - coalesce(anual.total, 0) - coalesce(sueldo.total, 0) - coalesce(centro.total, 0)
       ) order by u.descripcion)
       from unidades u
@@ -252,6 +253,10 @@ begin
         select sum(c.monto) as total from costos c join ot_cabecera ot on ot.id = c.id_ot
         where ot.id_unidad = u.id and c.fecha >= v_desde and c.fecha < v_hasta
       ) mant on true
+      left join lateral (
+        select sum(og.monto) as total from otros_gastos_unidad og
+        where og.id_unidad = u.id and og.fecha >= v_desde and og.fecha < v_hasta
+      ) otros on true
       left join lateral (
         select sum(ca.monto_anual) / 12 as total from costos_empresa_anual ca
         where ca.id_unidad = u.id and ca.anio = v_anio

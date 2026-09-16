@@ -441,6 +441,7 @@ function ResultadoNeto({ mes }) {
       { label: 'Facturado', get: f => f.facturado },
       { label: 'Combustible', get: f => f.combustible },
       { label: 'Mantenimiento', get: f => f.mantenimiento },
+      { label: 'Otros gastos', get: f => f.otros_gastos },
       { label: 'Anual prorrateado', get: f => f.anual_prorateado },
       { label: 'Sueldo chofer prorrateado', get: f => f.sueldo_chofer_prorateado },
       { label: 'Costo centro prorrateado', get: f => f.costo_centro_prorateado },
@@ -476,6 +477,7 @@ function ResultadoNeto({ mes }) {
                     <th className="px-4 py-3 text-right">Facturado</th>
                     <th className="px-4 py-3 text-right">Combustible</th>
                     <th className="px-4 py-3 text-right">Mantenim.</th>
+                    <th className="px-4 py-3 text-right">Otros gastos</th>
                     <th className="px-4 py-3 text-right">Anual prorrat.</th>
                     <th className="px-4 py-3 text-right">Chofer prorrat.</th>
                     <th className="px-4 py-3 text-right">Centro prorrat.</th>
@@ -491,6 +493,7 @@ function ResultadoNeto({ mes }) {
                       <td className="px-4 py-3 text-right tabular-nums">{money(u.facturado)}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.combustible)}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.mantenimiento)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.otros_gastos)}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.anual_prorateado)}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.sueldo_chofer_prorateado)}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.costo_centro_prorateado)}</td>

@@ -1,8 +1,150 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { exportarXlsx } from '../lib/exportarXlsx'
+import { parseRemitoCombustible, esCombustible } from '../lib/parseRemitoCombustible'
 import CargaCombustibleModal from '../components/CargaCombustibleModal'
 import MultiSelectFiltro from '../components/MultiSelectFiltro'
+import Modal from '../components/Modal'
+
+const KM_MINIMO_VALIDO = 100
+
+function ImportarRemitoModal({ unidades, onClose, onImportado }) {
+  const [filas, setFilas] = useState(null)
+  const [resultado, setResultado] = useState(null)
+  const [sinMatch, setSinMatch] = useState([])
+  const [asignaciones, setAsignaciones] = useState({})
+  const [error, setError] = useState('')
+  const [procesando, setProcesando] = useState(false)
+
+  function normalizar(patente) {
+    return (patente || '').toUpperCase().replace(/\s+/g, '')
+  }
+
+  async function leerArchivo(e) {
+    const archivo = e.target.files[0]
+    if (!archivo) return
+    setError('')
+    setResultado(null)
+    try {
+      const filasRaw = await parseRemitoCombustible(await archivo.arrayBuffer())
+      if (filasRaw.length === 0) { setError('No se encontraron filas — revisá que sea el Excel de remitos de la estación.'); return }
+
+      const armadas = filasRaw.map(f => ({
+        remito_externo: `${f.remito}__${f.codProducto}__${f.cantidad.toFixed(2)}__${f.importeLinea.toFixed(2)}`,
+        fecha: (f.fecha ?? new Date()).toISOString(),
+        patente_texto: normalizar(f.patente),
+        patente_original: f.patente,
+        chofer_externo: f.chofer || null,
+        estacion: f.estacion || null,
+        es_combustible: esCombustible(f.producto),
+        litros: f.cantidad,
+        precio_unitario: f.precioUnitario,
+        precio_total: f.importeLinea,
+        km: f.km >= KM_MINIMO_VALIDO ? f.km : null,
+        concepto: f.producto,
+      }))
+      setFilas(armadas)
+    } catch (err) {
+      setError('No se pudo leer el archivo: ' + err.message)
+    }
+  }
+
+  async function importar(filasAEnviar) {
+    setProcesando(true)
+    setError('')
+    const { data, error } = await supabase.rpc('importar_remito_combustible', { p_filas: filasAEnviar })
+    setProcesando(false)
+    if (error) { setError(error.message); return }
+    if (!data?.ok) { setError(data?.msg ?? 'No se pudo importar'); return }
+    setResultado(data)
+    setSinMatch(data.patentes_sin_match || [])
+    if ((data.patentes_sin_match || []).length === 0) onImportado()
+  }
+
+  async function resolverYReintentar() {
+    setError('')
+    for (const patente of sinMatch) {
+      const idUnidad = asignaciones[patente]
+      if (!idUnidad) continue
+      const { data, error } = await supabase.rpc('guardar_mapeo_patente_externa', { p_patente_texto: patente, p_id_unidad: idUnidad })
+      if (error) { setError(error.message); return }
+      if (!data?.ok) { setError(data?.msg ?? 'No se pudo guardar el mapeo'); return }
+    }
+    await importar(filas)
+    onImportado()
+  }
+
+  return (
+    <Modal titulo="Importar remito de combustible" onClose={onClose} ancho="max-w-2xl">
+      <div className="space-y-4">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Subí el Excel que exporta la estación de servicio. Las líneas de combustible (nafta/gasoil/diesel) se
+          cargan como cargas de combustible; el resto (ej. AdBlue) se carga como otro gasto de la unidad.
+          Si ya importaste este archivo antes, las filas repetidas se ignoran solas.
+        </p>
+
+        {!filas && (
+          <input type="file" accept=".xlsx" onChange={leerArchivo} className="text-sm" />
+        )}
+
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+        {filas && !resultado && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Se leyeron {filas.length} línea(s). {filas.filter(f => f.es_combustible).length} de combustible,{' '}
+              {filas.filter(f => !f.es_combustible).length} de otro gasto.
+            </p>
+            <button type="button" onClick={() => importar(filas)} disabled={procesando}
+              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50">
+              {procesando ? 'Importando…' : 'Importar'}
+            </button>
+          </div>
+        )}
+
+        {resultado && (
+          <div className="space-y-3">
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 text-sm space-y-1">
+              <p>Cargas de combustible importadas: <span className="font-medium">{resultado.importados_combustible}</span></p>
+              <p>Otros gastos importados: <span className="font-medium">{resultado.importados_otros}</span></p>
+              <p>Duplicados (ya estaban cargados): <span className="font-medium">{resultado.duplicados}</span></p>
+            </div>
+
+            {sinMatch.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  {sinMatch.length} patente(s) del remito no matchean ninguna unidad — elegí a cuál corresponden
+                  (queda guardado para la próxima importación):
+                </p>
+                {sinMatch.map(patente => (
+                  <div key={patente} className="flex items-center gap-2">
+                    <span className="text-sm font-mono w-32 shrink-0">{patente}</span>
+                    <select
+                      value={asignaciones[patente] ?? ''}
+                      onChange={e => setAsignaciones(a => ({ ...a, [patente]: e.target.value }))}
+                      className="flex-1 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-900"
+                    >
+                      <option value="">Elegir unidad…</option>
+                      {unidades.map(u => <option key={u.id} value={u.id}>{u.patente_serie} — {u.descripcion}</option>)}
+                    </select>
+                  </div>
+                ))}
+                <button type="button" onClick={resolverYReintentar} disabled={procesando}
+                  className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50">
+                  {procesando ? 'Procesando…' : 'Guardar y reintentar'}
+                </button>
+              </div>
+            )}
+
+            {sinMatch.length === 0 && (
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Listo</button>
+            )}
+          </div>
+        )}
+      </div>
+    </Modal>
+  )
+}
 
 export default function Combustible({ usuario }) {
   const [unidades, setUnidades] = useState([])
@@ -10,6 +152,7 @@ export default function Combustible({ usuario }) {
   const [alertas, setAlertas] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [modalImportarAbierto, setModalImportarAbierto] = useState(false)
   const [filtroUnidades, setFiltroUnidades] = useState([])
   const [filtroCentro, setFiltroCentro] = useState([])
   const [filtroCiudad, setFiltroCiudad] = useState([])
@@ -75,6 +218,10 @@ export default function Combustible({ usuario }) {
             className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-lg transition-colors"
           >
             ↓ Excel
+          </button>
+          <button onClick={() => setModalImportarAbierto(true)}
+            className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-lg transition-colors">
+            ↑ Importar remito
           </button>
           <button onClick={() => setModalAbierto(true)}
             className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors">
@@ -157,6 +304,14 @@ export default function Combustible({ usuario }) {
           usuario={usuario}
           onClose={() => setModalAbierto(false)}
           onSaved={() => { setModalAbierto(false); cargar() }}
+        />
+      )}
+
+      {modalImportarAbierto && (
+        <ImportarRemitoModal
+          unidades={unidades}
+          onClose={() => setModalImportarAbierto(false)}
+          onImportado={cargar}
         />
       )}
     </div>
