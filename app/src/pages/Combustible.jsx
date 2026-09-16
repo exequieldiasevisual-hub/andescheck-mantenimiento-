@@ -64,9 +64,12 @@ function ImportarRemitoModal({ unidades, onClose, onImportado }) {
   async function resolverYReintentar() {
     setError('')
     for (const patente of sinMatch) {
-      const idUnidad = asignaciones[patente]
-      if (!idUnidad) continue
-      const { data, error } = await supabase.rpc('guardar_mapeo_patente_externa', { p_patente_texto: patente, p_id_unidad: idUnidad })
+      const valor = asignaciones[patente]
+      if (!valor) continue
+      const esIgnorar = valor === 'IGNORAR'
+      const { data, error } = await supabase.rpc('guardar_mapeo_patente_externa', {
+        p_patente_texto: patente, p_id_unidad: esIgnorar ? null : valor, p_ignorar: esIgnorar,
+      })
       if (error) { setError(error.message); return }
       if (!data?.ok) { setError(data?.msg ?? 'No se pudo guardar el mapeo'); return }
     }
@@ -108,13 +111,14 @@ function ImportarRemitoModal({ unidades, onClose, onImportado }) {
               <p>Cargas de combustible importadas: <span className="font-medium">{resultado.importados_combustible}</span></p>
               <p>Otros gastos importados: <span className="font-medium">{resultado.importados_otros}</span></p>
               <p>Duplicados (ya estaban cargados): <span className="font-medium">{resultado.duplicados}</span></p>
+              {resultado.ignorados > 0 && <p>Ignorados (no son de la empresa): <span className="font-medium">{resultado.ignorados}</span></p>}
             </div>
 
             {sinMatch.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm text-amber-600 dark:text-amber-400">
-                  {sinMatch.length} patente(s) del remito no matchean ninguna unidad — elegí a cuál corresponden
-                  (queda guardado para la próxima importación):
+                  {sinMatch.length} patente(s) del remito no matchean ninguna unidad — elegí a cuál corresponden,
+                  o marcá "no es de la empresa" si es un auto particular (queda guardado para la próxima importación):
                 </p>
                 {sinMatch.map(patente => (
                   <div key={patente} className="flex items-center gap-2">
@@ -126,6 +130,7 @@ function ImportarRemitoModal({ unidades, onClose, onImportado }) {
                     >
                       <option value="">Elegir unidad…</option>
                       {unidades.map(u => <option key={u.id} value={u.id}>{u.patente_serie} — {u.descripcion}</option>)}
+                      <option value="IGNORAR">— No es de la empresa (auto particular) —</option>
                     </select>
                   </div>
                 ))}
