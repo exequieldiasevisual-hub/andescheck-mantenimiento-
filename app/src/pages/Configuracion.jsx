@@ -789,6 +789,7 @@ export default function Configuracion({ usuario }) {
 
         {tab === 'Catálogo' && (
           <>
+            <TablaSimple titulo="Categorías de Trabajo" columna="Categoría" seccion="categorias_trabajo" empresaId={usuario.empresa_id} filas={porSeccion('categorias_trabajo')} onChange={cargar} />
             <CatalogoTrabajos />
             <TablaSimple titulo="Unidades de Medida (Stock)" columna="Descripción" seccion="unidades_medida" empresaId={usuario.empresa_id} filas={porSeccion('unidades_medida')} onChange={cargar} />
           </>
