@@ -219,30 +219,44 @@ function TecnicosOtModal({ tecnicos, seleccionados, onClose, onSave }) {
 
 function AgregarTareaModal({ idOt, tareasActuales, onClose, onAdded }) {
   const [catalogo, setCatalogo] = useState([])
-  const [idCatalogo, setIdCatalogo] = useState('')
+  const [carrito, setCarrito] = useState([])
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [progreso, setProgreso] = useState(0)
 
   useEffect(() => {
     supabase.from('catalogo_trabajos').select('id, categoria, descripcion').eq('activo', true).order('categoria').order('descripcion')
       .then(({ data }) => setCatalogo(data || []))
   }, [])
 
-  const yaCargado = idCatalogo && tareasActuales?.some(t => t.id_catalogo === idCatalogo)
+  function agregarAlCarrito(id) {
+    const item = catalogo.find(t => t.id === id)
+    if (!item) return
+    setCarrito(c => (c.some(x => x.id === id) ? c : [...c, item]))
+  }
+
+  function quitarDelCarrito(id) {
+    setCarrito(c => c.filter(x => x.id !== id))
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!idCatalogo) { setError('Elegí un trabajo del catálogo'); return }
+    if (carrito.length === 0) { setError('Agregá al menos un trabajo al carrito'); return }
     setSaving(true)
     setError('')
-    const { data, error } = await supabase.rpc('agregar_tarea_ot', {
-      p_id_ot: idOt,
-      p_id_catalogo: idCatalogo,
-      p_descripcion: null,
-    })
+    setProgreso(0)
+    const fallidos = []
+    for (const item of carrito) {
+      const { data, error } = await supabase.rpc('agregar_tarea_ot', {
+        p_id_ot: idOt,
+        p_id_catalogo: item.id,
+        p_descripcion: null,
+      })
+      if (error || !data?.ok) fallidos.push(`${item.descripcion}: ${error?.message ?? data?.msg}`)
+      setProgreso(p => p + 1)
+    }
     setSaving(false)
-    if (error) { setError(error.message); return }
-    if (!data?.ok) { setError(data.msg); return }
+    if (fallidos.length > 0) { setError(`No se pudieron agregar ${fallidos.length} tarea(s): ${fallidos.join(' · ')}`); return }
     onAdded()
   }
 
@@ -250,25 +264,42 @@ function AgregarTareaModal({ idOt, tareasActuales, onClose, onAdded }) {
     <Modal titulo="Agregar tarea" onClose={onClose} ancho="max-w-2xl" alto="min-h-[700px]">
       <form onSubmit={handleSubmit} className="space-y-3 flex-1 flex flex-col">
         <div>
-          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Trabajo del catálogo *</label>
-          <BuscadorCatalogo catalogo={catalogo} value={idCatalogo} onChange={setIdCatalogo} placeholder="Buscar trabajo del catálogo…" />
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Trabajo del catálogo</label>
+          <BuscadorCatalogo catalogo={catalogo} value="" onChange={agregarAlCarrito} placeholder="Buscar trabajo del catálogo…" />
         </div>
 
-        {yaCargado && (
-          <p className="text-sm text-amber-600 dark:text-amber-400" aria-live="polite">
-            ⚠ Este trabajo ya está cargado en esta OT — podés agregarlo igual si corresponde.
-          </p>
+        {carrito.length > 0 && (
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-800 max-h-64 overflow-y-auto">
+            {carrito.map(item => {
+              const yaCargado = tareasActuales?.some(t => t.id_catalogo === item.id)
+              return (
+                <div key={item.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate text-gray-900 dark:text-gray-100">
+                      {item.categoria && <span className="text-xs text-gray-400 mr-1.5">[{item.categoria}]</span>}
+                      {item.descripcion}
+                    </p>
+                    {yaCargado && <p className="text-xs text-amber-600 dark:text-amber-400">⚠ Ya está cargado en esta OT</p>}
+                  </div>
+                  <button type="button" onClick={() => quitarDelCarrito(item.id)} className="shrink-0 text-gray-400 hover:text-red-600 px-1">✕</button>
+                </div>
+              )
+            })}
+          </div>
         )}
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-        <div className="flex justify-end gap-2 pt-2 mt-auto">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
-            Cancelar
-          </button>
-          <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50">
-            {saving ? 'Guardando…' : 'Agregar'}
-          </button>
+        <div className="flex justify-between items-center gap-2 pt-2 mt-auto">
+          <span className="text-xs text-gray-400">{carrito.length} tarea{carrito.length === 1 ? '' : 's'} en el carrito</span>
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving || carrito.length === 0} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50">
+              {saving ? `Guardando ${progreso}/${carrito.length}…` : `Agregar ${carrito.length || ''}`}
+            </button>
+          </div>
         </div>
       </form>
     </Modal>
