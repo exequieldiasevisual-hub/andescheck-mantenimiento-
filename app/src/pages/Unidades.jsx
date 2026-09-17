@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { exportarXlsx } from '../lib/exportarXlsx'
 import { parseXlsx } from '../lib/importarXlsx'
+import { parseResumenFlota } from '../lib/parseResumenFlota'
 import Modal from '../components/Modal'
 import SelectConfig from '../components/SelectConfig'
 import KmHsModal from '../components/KmHsModal'
@@ -272,6 +273,34 @@ function CargaMasivaModal({ unidades, onClose, onSaved }) {
     }
   }
 
+  async function importarResumenFlota(e) {
+    const archivo = e.target.files[0]
+    e.target.value = ''
+    if (!archivo) return
+    setError('')
+    try {
+      const filas = await parseResumenFlota(await archivo.arrayBuffer())
+      if (filas.length === 0) { setError('No se encontraron filas — revisá que sea el Excel "Resumen de Flota" del GPS.'); return }
+      let cargadas = 0
+      const nuevos = {}
+      for (const fila of filas) {
+        const matricula = fila.matricula.toUpperCase().replace(/\s+/g, '')
+        const u = unidades.find(x => x.patente_serie?.toUpperCase().replace(/\s+/g, '') === matricula)
+        if (!u) continue
+        if (fila.km == null && fila.hs == null) continue
+        nuevos[u.id] = {
+          km: fila.km != null ? String(Math.round(fila.km * 100) / 100) : '',
+          hs: fila.hs != null ? String(Math.round(fila.hs * 100) / 100) : '',
+        }
+        cargadas++
+      }
+      setValores(prev => ({ ...prev, ...nuevos }))
+      setResultado(`Se cargaron ${cargadas} de ${filas.length} fila(s) del Excel (Odómetro → Km, Horómetro → Hs). Revisá y guardá.`)
+    } catch (err) {
+      setError('No se pudo leer el archivo: ' + err.message)
+    }
+  }
+
   async function guardar() {
     const datos = Object.entries(valores)
       .filter(([, v]) => (v.km ?? '') !== '' || (v.hs ?? '') !== '')
@@ -300,10 +329,16 @@ function CargaMasivaModal({ unidades, onClose, onSaved }) {
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Completá solo las unidades que quieras actualizar. Formato Excel: columnas Patente, Km, Hs.
           </p>
-          <label className="text-xs text-blue-600 hover:underline cursor-pointer whitespace-nowrap ml-3">
-            ↑ Importar Excel
-            <input type="file" accept=".xlsx" onChange={importarExcel} className="hidden" />
-          </label>
+          <div className="flex gap-3 ml-3 shrink-0">
+            <label className="text-xs text-blue-600 hover:underline cursor-pointer whitespace-nowrap">
+              ↑ Importar Excel
+              <input type="file" accept=".xlsx" onChange={importarExcel} className="hidden" />
+            </label>
+            <label className="text-xs text-blue-600 hover:underline cursor-pointer whitespace-nowrap">
+              ↑ Importar GPS (Resumen de Flota)
+              <input type="file" accept=".xlsx" onChange={importarResumenFlota} className="hidden" />
+            </label>
+          </div>
         </div>
 
         <div className="max-h-96 overflow-y-auto overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
