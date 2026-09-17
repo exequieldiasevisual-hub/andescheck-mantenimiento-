@@ -223,6 +223,7 @@ function AgregarTareaModal({ idOt, tareasActuales, onClose, onAdded }) {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [progreso, setProgreso] = useState(0)
+  const [avisoDuplicado, setAvisoDuplicado] = useState('')
 
   useEffect(() => {
     supabase.from('catalogo_trabajos').select('id, categoria, descripcion').eq('activo', true).order('categoria').order('descripcion')
@@ -232,7 +233,12 @@ function AgregarTareaModal({ idOt, tareasActuales, onClose, onAdded }) {
   function agregarAlCarrito(id) {
     const item = catalogo.find(t => t.id === id)
     if (!item) return
-    setCarrito(c => (c.some(x => x.id === id) ? c : [...c, item]))
+    if (carrito.some(x => x.id === id)) {
+      setAvisoDuplicado(item.descripcion)
+      return
+    }
+    setAvisoDuplicado('')
+    setCarrito(c => [...c, item])
   }
 
   function quitarDelCarrito(id) {
@@ -241,7 +247,7 @@ function AgregarTareaModal({ idOt, tareasActuales, onClose, onAdded }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (carrito.length === 0) { setError('Agregá al menos un trabajo al carrito'); return }
+    if (carrito.length === 0) { setError('Agregá al menos un trabajo a la cola'); return }
     setSaving(true)
     setError('')
     setProgreso(0)
@@ -266,6 +272,11 @@ function AgregarTareaModal({ idOt, tareasActuales, onClose, onAdded }) {
         <div>
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Trabajo del catálogo</label>
           <BuscadorCatalogo catalogo={catalogo} value="" onChange={agregarAlCarrito} placeholder="Buscar trabajo del catálogo…" />
+          {avisoDuplicado && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1" aria-live="polite">
+              ⚠ "{avisoDuplicado}" ya está en la cola
+            </p>
+          )}
         </div>
 
         {carrito.length > 0 && (
@@ -291,7 +302,7 @@ function AgregarTareaModal({ idOt, tareasActuales, onClose, onAdded }) {
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
         <div className="flex justify-between items-center gap-2 pt-2 mt-auto">
-          <span className="text-xs text-gray-400">{carrito.length} tarea{carrito.length === 1 ? '' : 's'} en el carrito</span>
+          <span className="text-xs text-gray-400">{carrito.length} tarea{carrito.length === 1 ? '' : 's'} en cola</span>
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
               Cancelar
