@@ -468,9 +468,9 @@ function ResultadoNeto({ mes }) {
           {datos.unidades.length === 0 ? (
             <p className="px-5 py-8 text-sm text-gray-400 text-center">No hay unidades activas</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto mt-2 max-h-96 overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-900">
+                <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-900">
                   <tr className="text-xs text-gray-400 dark:text-gray-500 font-medium">
                     <th className="px-4 py-3 text-left">Unidad</th>
                     <th className="px-4 py-3 text-left">Centro</th>
