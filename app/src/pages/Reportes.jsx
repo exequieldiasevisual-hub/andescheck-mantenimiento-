@@ -416,10 +416,124 @@ function FilaFacturadoManual({ unidad, onGuardar }) {
   )
 }
 
+function DetalleCostoModal({ tipo, unidad, mes, onClose }) {
+  const [filas, setFilas] = useState(null)
+  const [error, setError] = useState('')
+
+  const TITULOS = {
+    combustible: 'Combustible',
+    mantenimiento: 'Mantenimiento (OT)',
+    otros_gastos: 'Otros gastos',
+    anual: 'Costos anuales prorrateados',
+    chofer: 'Sueldo chofer prorrateado',
+    centro: 'Costo del centro prorrateado',
+  }
+
+  useEffect(() => {
+    const desde = `${mes}-01`
+    const hasta = new Date(`${mes}-01T00:00:00`)
+    hasta.setMonth(hasta.getMonth() + 1)
+    const hastaStr = hasta.toISOString().slice(0, 10)
+
+    async function cargar() {
+      setError('')
+      if (tipo === 'combustible') {
+        const { data, error } = await supabase.from('combustible_cargas')
+          .select('fecha, origen, estacion, litros, precio_unitario, precio_total')
+          .eq('id_unidad', unidad.id_unidad).gte('fecha', desde).lt('fecha', hastaStr).order('fecha')
+        if (error) { setError(error.message); return }
+        setFilas((data || []).map(c => ({
+          etiqueta: `${new Date(c.fecha).toLocaleDateString()} — ${c.origen === 'Estación externa' ? c.estacion || c.origen : c.origen} (${c.litros} L)`,
+          monto: c.precio_total ?? (c.litros * c.precio_unitario),
+        })))
+      } else if (tipo === 'mantenimiento') {
+        const { data, error } = await supabase.from('costos')
+          .select('fecha, descripcion, tipo, monto, ot_cabecera!inner(id_unidad, numero_ot)')
+          .eq('ot_cabecera.id_unidad', unidad.id_unidad).gte('fecha', desde).lt('fecha', hastaStr).order('fecha')
+        if (error) { setError(error.message); return }
+        setFilas((data || []).map(c => ({
+          etiqueta: `${new Date(c.fecha).toLocaleDateString()} — OT ${c.ot_cabecera?.numero_ot}${c.descripcion ? ` — ${c.descripcion}` : ''}`,
+          monto: c.monto,
+        })))
+      } else if (tipo === 'otros_gastos') {
+        const { data, error } = await supabase.from('otros_gastos_unidad')
+          .select('fecha, concepto, monto, chofer_externo')
+          .eq('id_unidad', unidad.id_unidad).gte('fecha', desde).lt('fecha', hastaStr).order('fecha')
+        if (error) { setError(error.message); return }
+        setFilas((data || []).map(g => ({
+          etiqueta: `${new Date(g.fecha).toLocaleDateString()} — ${g.concepto}${g.chofer_externo ? ` (${g.chofer_externo})` : ''}`,
+          monto: g.monto,
+        })))
+      } else if (tipo === 'anual') {
+        const { data, error } = await supabase.from('costos_empresa_anual')
+          .select('concepto, monto_anual').eq('id_unidad', unidad.id_unidad).eq('anio', Number(mes.slice(0, 4)))
+        if (error) { setError(error.message); return }
+        setFilas((data || []).map(a => ({
+          etiqueta: `${a.concepto} — ${money(a.monto_anual)}/año`,
+          monto: a.monto_anual / 12,
+        })))
+      } else if (tipo === 'centro') {
+        const [{ data: costosData, error }, { data: unidadesData }] = await Promise.all([
+          supabase.from('costos_empresa_centro').select('concepto, monto').eq('centro_costo', unidad.centro_costo).eq('mes', desde),
+          supabase.from('unidades').select('id').eq('centro_costo', unidad.centro_costo).eq('activo', true),
+        ])
+        if (error) { setError(error.message); return }
+        const cant = unidadesData?.length || 1
+        setFilas((costosData || []).map(c => ({
+          etiqueta: `${c.concepto} — ${money(c.monto)} repartido entre ${cant} unidad(es) de "${unidad.centro_costo}"`,
+          monto: c.monto / cant,
+        })))
+      } else if (tipo === 'chofer') {
+        const { data: viajes, error } = await supabase.from('bitacora_viajes')
+          .select('id_chofer, chofer:usuarios!bitacora_viajes_id_chofer_fkey(nombre)')
+          .eq('id_unidad', unidad.id_unidad).gte('fecha', desde).lt('fecha', hastaStr)
+        if (error) { setError(error.message); return }
+        const choferesUnicos = [...new Map((viajes || []).map(v => [v.id_chofer, v.chofer?.nombre])).entries()]
+        const resultado = []
+        for (const [idChofer, nombre] of choferesUnicos) {
+          const [{ data: sueldo }, { data: viajesDelMes }] = await Promise.all([
+            supabase.from('costos_empresa_sueldo_chofer').select('monto').eq('id_chofer', idChofer).eq('mes', desde).maybeSingle(),
+            supabase.from('bitacora_viajes').select('id_unidad').eq('id_chofer', idChofer).gte('fecha', desde).lt('fecha', hastaStr),
+          ])
+          if (!sueldo) continue
+          const cantUnidades = new Set((viajesDelMes || []).map(v => v.id_unidad)).size || 1
+          resultado.push({
+            etiqueta: `${nombre} — sueldo ${money(sueldo.monto)} repartido entre ${cantUnidades} unidad(es) que manejó`,
+            monto: sueldo.monto / cantUnidades,
+          })
+        }
+        setFilas(resultado)
+      }
+    }
+    cargar()
+  }, [tipo, unidad, mes])
+
+  return (
+    <Modal titulo={`${TITULOS[tipo]} — ${unidad.patente ?? 's/patente'} — ${unidad.unidad}`} onClose={onClose} ancho="max-w-xl">
+      <div className="space-y-3">
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {!filas && !error && <p className="text-sm text-gray-400">Cargando…</p>}
+        {filas && filas.length === 0 && <p className="text-sm text-gray-400">Sin detalle para mostrar.</p>}
+        {filas && filas.length > 0 && (
+          <div className="max-h-96 overflow-y-auto space-y-1">
+            {filas.map((f, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 text-sm border-t border-gray-100 dark:border-gray-800 first:border-t-0 pt-1.5">
+                <span className="text-gray-600 dark:text-gray-400">{f.etiqueta}</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100 tabular-nums shrink-0">{money(f.monto)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
 function ResultadoNeto({ mes }) {
   const [datos, setDatos] = useState(null)
   const [error, setError] = useState('')
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [detalle, setDetalle] = useState(null)
 
   function cargar() {
     setError('')
@@ -486,21 +600,32 @@ function ResultadoNeto({ mes }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {datos.unidades.map(u => (
-                    <tr key={u.id_unidad} className="border-t border-gray-100 dark:border-gray-800">
-                      <td className="px-4 py-3 text-gray-900 dark:text-gray-100 font-medium">{u.patente ?? 's/patente'} — {u.unidad}</td>
-                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{u.centro_costo ?? '—'}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{money(u.facturado)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.combustible)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.mantenimiento)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.otros_gastos)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.anual_prorateado)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.sueldo_chofer_prorateado)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{money(u.costo_centro_prorateado)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{u.km ?? '—'}</td>
-                      <td className={`px-4 py-3 text-right tabular-nums font-semibold ${Number(u.resultado) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{money(u.resultado)}</td>
-                    </tr>
-                  ))}
+                  {datos.unidades.map(u => {
+                    const celda = (tipo, valor) => (
+                      <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">
+                        {Number(valor) ? (
+                          <button type="button" onClick={() => setDetalle({ tipo, unidad: u })} className="hover:underline hover:text-blue-600 dark:hover:text-blue-400">
+                            {money(valor)}
+                          </button>
+                        ) : money(valor)}
+                      </td>
+                    )
+                    return (
+                      <tr key={u.id_unidad} className="border-t border-gray-100 dark:border-gray-800">
+                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100 font-medium">{u.patente ?? 's/patente'} — {u.unidad}</td>
+                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{u.centro_costo ?? '—'}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{money(u.facturado)}</td>
+                        {celda('combustible', u.combustible)}
+                        {celda('mantenimiento', u.mantenimiento)}
+                        {celda('otros_gastos', u.otros_gastos)}
+                        {celda('anual', u.anual_prorateado)}
+                        {celda('chofer', u.sueldo_chofer_prorateado)}
+                        {celda('centro', u.costo_centro_prorateado)}
+                        <td className="px-4 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{u.km ?? '—'}</td>
+                        <td className={`px-4 py-3 text-right tabular-nums font-semibold ${Number(u.resultado) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{money(u.resultado)}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -510,6 +635,10 @@ function ResultadoNeto({ mes }) {
 
       {modalAbierto && (
         <CargarDatosCostosModal mes={mes} onClose={() => setModalAbierto(false)} onGuardado={cargar} />
+      )}
+
+      {detalle && (
+        <DetalleCostoModal tipo={detalle.tipo} unidad={detalle.unidad} mes={mes} onClose={() => setDetalle(null)} />
       )}
     </div>
   )
