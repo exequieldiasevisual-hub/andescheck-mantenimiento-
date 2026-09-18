@@ -621,7 +621,7 @@ export default function Bitacora({ usuario }) {
                   {(esChofer || puedeGestionar) && v.estado === 'En_curso' && (
                     <button onClick={() => setGastoViaje(v)} className="text-xs text-blue-600 hover:underline">+ Agregar gasto</button>
                   )}
-                  {esChofer && v.estado === 'En_curso' && (
+                  {(esChofer || puedeGestionar) && v.estado === 'En_curso' && (
                     <button onClick={() => setRendirViajeSel(v)} className="text-xs text-green-600 hover:underline">Rendir y firmar</button>
                   )}
                   {puedeGestionar && v.estado === 'Rendido' && (
