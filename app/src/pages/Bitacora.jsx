@@ -268,6 +268,61 @@ function EditarGastoModal({ gasto, onClose, onSaved }) {
   )
 }
 
+function AgregarViaticosModal({ viaje, onClose, onSaved }) {
+  const [monto, setMonto] = useState('')
+  const [metodo, setMetodo] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (monto === '' || Number(monto) <= 0) { setError('Ingresá un monto válido'); return }
+    setSaving(true)
+    setError('')
+    const { data, error } = await supabase.rpc('agregar_viaticos_bitacora', {
+      p_id_viaje: viaje.id, p_monto: Number(monto), p_metodo: metodo || null,
+    })
+    setSaving(false)
+    if (error) { setError(error.message); return }
+    if (!data?.ok) { setError(data?.msg ?? 'No se pudo cargar los viáticos'); return }
+    onSaved()
+  }
+
+  return (
+    <Modal titulo={`Sumar viáticos — ${viaje.destino}`} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Viáticos asignados hasta ahora: {moneda(viaje.viaticos_monto)}
+        </p>
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Monto a sumar *</label>
+          <input type="number" step="0.01" value={monto} onChange={e => setMonto(e.target.value)}
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" required autoFocus />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Método</label>
+          <select value={metodo} onChange={e => setMetodo(e.target.value)}
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900">
+            <option value="">Seleccionar...</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Efectivo">Efectivo</option>
+          </select>
+        </div>
+
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancelar</button>
+          <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50">
+            {saving ? 'Guardando…' : 'Sumar viáticos'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 function RendirViajeModal({ viaje, empresaId, onClose, onSaved }) {
   const padRef = useRef(null)
   const [error, setError] = useState('')
@@ -351,11 +406,14 @@ export default function Bitacora({ usuario }) {
   const [loading, setLoading] = useState(true)
   const [nuevoViajeAbierto, setNuevoViajeAbierto] = useState(false)
   const [gastoViaje, setGastoViaje] = useState(null)
+  const [viaticosViaje, setViaticosViaje] = useState(null)
   const [gastoEditar, setGastoEditar] = useState(null)
+  const [gastoEliminar, setGastoEliminar] = useState(null)
   const [rendirViajeSel, setRendirViajeSel] = useState(null)
   const [viajeEliminar, setViajeEliminar] = useState(null)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
+  const [busqueda, setBusqueda] = useState('')
 
   function manejarGuardadoOffline(signal) {
     if (signal === 'sin_conexion_con_foto') setAviso('Guardado sin conexión — se sincroniza solo. La foto del ticket no se pudo adjuntar.')
@@ -366,7 +424,7 @@ export default function Bitacora({ usuario }) {
   async function cargar() {
     setLoading(true)
     const { data: viajesData } = await supabase.from('bitacora_viajes')
-      .select('*, unidades(descripcion, patente_serie), chofer:usuarios!bitacora_viajes_id_chofer_fkey(nombre), gastos:bitacora_gastos(id, concepto, monto, foto_url, motivo_edicion)')
+      .select('*, unidades(descripcion, patente_serie), chofer:usuarios!bitacora_viajes_id_chofer_fkey(nombre), gastos:bitacora_gastos(id, concepto, monto, foto_url, motivo_edicion), viaticos_adicionales:bitacora_viaticos_adicionales(id, monto, metodo, fecha_alta)')
       .order('fecha', { ascending: false })
     setViajes(viajesData || [])
 
@@ -390,6 +448,7 @@ export default function Bitacora({ usuario }) {
       .channel('bitacora_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bitacora_viajes' }, () => cargar())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bitacora_gastos' }, () => cargar())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bitacora_viaticos_adicionales' }, () => cargar())
       .subscribe()
     return () => { supabase.removeChannel(canal) }
   }, [])
@@ -452,16 +511,38 @@ export default function Bitacora({ usuario }) {
     cargar()
   }
 
+  async function eliminarGasto() {
+    const { data, error } = await supabase.rpc('eliminar_gasto_bitacora', { p_id_gasto: gastoEliminar.id })
+    if (error) throw error
+    if (!data?.ok) throw new Error(data?.msg ?? 'No se pudo eliminar el gasto')
+    setGastoEliminar(null)
+    cargar()
+  }
+
+  const q = busqueda.trim().toLowerCase()
+  const viajesFiltrados = viajes
+    .filter(v => !q || v.unidades?.patente_serie?.toLowerCase().includes(q) || v.unidades?.descripcion?.toLowerCase().includes(q))
+    .slice()
+    .sort((a, b) => (a.estado === 'En_curso' ? 0 : 1) - (b.estado === 'En_curso' ? 0 : 1))
+
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-base font-medium text-gray-900 dark:text-gray-100">Bitácora</h1>
-        {puedeGestionar && (
-          <button onClick={() => setNuevoViajeAbierto(true)}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors">
-            + Nuevo viaje
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <input
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            placeholder="🔍 Buscar por unidad…"
+            className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 w-56"
+          />
+          {puedeGestionar && (
+            <button onClick={() => setNuevoViajeAbierto(true)}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors">
+              + Nuevo viaje
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-6 space-y-3">
@@ -469,10 +550,10 @@ export default function Bitacora({ usuario }) {
         {aviso && <p className="text-sm text-amber-600 dark:text-amber-400">{aviso}</p>}
         {loading ? (
           <p className="text-sm text-gray-400 text-center py-8">Cargando…</p>
-        ) : viajes.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-8">No hay viajes cargados todavía</p>
+        ) : viajesFiltrados.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-8">{viajes.length === 0 ? 'No hay viajes cargados todavía' : 'Ningún viaje coincide con la búsqueda'}</p>
         ) : (
-          viajes.map(v => {
+          viajesFiltrados.map(v => {
             const totalGastado = (v.gastos || []).reduce((s, g) => s + Number(g.monto), 0)
             const sobra = Number(v.viaticos_monto) - totalGastado
             return (
@@ -498,7 +579,20 @@ export default function Bitacora({ usuario }) {
                   <span className={sobra >= 0 ? 'text-green-600' : 'text-red-600'}>
                     {sobra >= 0 ? 'Sobra' : 'Excedido'}: {moneda(Math.abs(sobra))}
                   </span>
+                  {puedeGestionar && v.estado === 'En_curso' && (
+                    <button type="button" onClick={() => setViaticosViaje(v)} className="text-blue-600 hover:underline">+ Viáticos</button>
+                  )}
                 </div>
+
+                {v.viaticos_adicionales?.length > 0 && (
+                  <div className="mt-1 space-y-0.5">
+                    {v.viaticos_adicionales.map(a => (
+                      <p key={a.id} className="text-xs text-gray-500 dark:text-gray-400">
+                        + Viáticos: {moneda(a.monto)} ({a.metodo || '—'}) — {new Date(a.fecha_alta).toLocaleDateString()}
+                      </p>
+                    ))}
+                  </div>
+                )}
 
                 {v.gastos?.length > 0 && (
                   <div className="mt-2 space-y-1">
@@ -508,6 +602,9 @@ export default function Bitacora({ usuario }) {
                         {g.foto_url && <a href={g.foto_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline ml-1">Ver ticket</a>}
                         {(esChofer || puedeGestionar) && v.estado === 'En_curso' && (
                           <button type="button" onClick={() => setGastoEditar(g)} title="Editar gasto" className="text-gray-400 hover:text-blue-600 ml-1">✏️</button>
+                        )}
+                        {puedeGestionar && v.estado === 'En_curso' && (
+                          <button type="button" onClick={() => setGastoEliminar(g)} title="Eliminar gasto" className="text-gray-400 hover:text-red-600 ml-1">🗑</button>
                         )}
                         {g.motivo_edicion && <span className="text-amber-600 dark:text-amber-400 ml-1" title={`Editado: ${g.motivo_edicion}`}>(editado)</span>}
                       </p>
@@ -521,11 +618,11 @@ export default function Bitacora({ usuario }) {
 
                 <div className="flex gap-3 mt-3">
                   <button onClick={() => imprimirViaje(v)} className="text-xs text-gray-500 dark:text-gray-400 hover:underline">🖨 Imprimir / PDF</button>
+                  {(esChofer || puedeGestionar) && v.estado === 'En_curso' && (
+                    <button onClick={() => setGastoViaje(v)} className="text-xs text-blue-600 hover:underline">+ Agregar gasto</button>
+                  )}
                   {esChofer && v.estado === 'En_curso' && (
-                    <>
-                      <button onClick={() => setGastoViaje(v)} className="text-xs text-blue-600 hover:underline">+ Agregar gasto</button>
-                      <button onClick={() => setRendirViajeSel(v)} className="text-xs text-green-600 hover:underline">Rendir y firmar</button>
-                    </>
+                    <button onClick={() => setRendirViajeSel(v)} className="text-xs text-green-600 hover:underline">Rendir y firmar</button>
                   )}
                   {puedeGestionar && v.estado === 'Rendido' && (
                     <button onClick={() => aprobar(v)} className="text-xs text-green-600 hover:underline">Aprobar</button>
@@ -558,6 +655,14 @@ export default function Bitacora({ usuario }) {
         />
       )}
 
+      {viaticosViaje && (
+        <AgregarViaticosModal
+          viaje={viaticosViaje}
+          onClose={() => setViaticosViaje(null)}
+          onSaved={() => { setViaticosViaje(null); cargar() }}
+        />
+      )}
+
       {gastoEditar && (
         <EditarGastoModal
           gasto={gastoEditar}
@@ -582,6 +687,16 @@ export default function Bitacora({ usuario }) {
           textoBoton="Eliminar"
           onConfirm={eliminar}
           onClose={() => setViajeEliminar(null)}
+        />
+      )}
+
+      {gastoEliminar && (
+        <ConfirmModal
+          titulo="Eliminar gasto"
+          mensaje={`¿Eliminar el gasto "${gastoEliminar.concepto}" (${moneda(gastoEliminar.monto)})?`}
+          textoBoton="Eliminar"
+          onConfirm={eliminarGasto}
+          onClose={() => setGastoEliminar(null)}
         />
       )}
     </div>
