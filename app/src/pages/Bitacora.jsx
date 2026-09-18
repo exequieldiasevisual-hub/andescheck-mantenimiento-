@@ -5,6 +5,7 @@ import { useOnline, encolarRpc } from '../lib/offline'
 import Modal from '../components/Modal'
 import ConfirmModal from '../components/ConfirmModal'
 import BuscadorUnidad from '../components/BuscadorUnidad'
+import MultiSelectFiltro from '../components/MultiSelectFiltro'
 import logoAndesCheck from '../assets/andescheck-logo.svg'
 
 const ESTADO_COLOR = {
@@ -422,7 +423,9 @@ export default function Bitacora({ usuario }) {
   const [viajeEliminar, setViajeEliminar] = useState(null)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
-  const [busqueda, setBusqueda] = useState('')
+  const [filtroUnidades, setFiltroUnidades] = useState([])
+  const [filtroChoferes, setFiltroChoferes] = useState([])
+  const [filtroEstados, setFiltroEstados] = useState(['En_curso'])
 
   function manejarGuardadoOffline(signal) {
     if (signal === 'sin_conexion_con_foto') setAviso('Guardado sin conexión — se sincroniza solo. La foto del ticket no se pudo adjuntar.')
@@ -528,9 +531,12 @@ export default function Bitacora({ usuario }) {
     cargar()
   }
 
-  const q = busqueda.trim().toLowerCase()
+  const nombrePorUnidad = Object.fromEntries(unidades.map(u => [u.id, [u.patente_serie, u.descripcion].filter(Boolean).join(' — ')]))
+  const nombrePorChofer = Object.fromEntries(choferes.map(c => [c.id, c.nombre]))
   const viajesFiltrados = viajes
-    .filter(v => !q || v.unidades?.patente_serie?.toLowerCase().includes(q) || v.unidades?.descripcion?.toLowerCase().includes(q))
+    .filter(v => filtroUnidades.length === 0 || filtroUnidades.includes(v.id_unidad))
+    .filter(v => filtroChoferes.length === 0 || filtroChoferes.includes(v.id_chofer))
+    .filter(v => filtroEstados.length === 0 || filtroEstados.includes(v.estado))
     .slice()
     .sort((a, b) => (a.estado === 'En_curso' ? 0 : 1) - (b.estado === 'En_curso' ? 0 : 1))
 
@@ -538,20 +544,22 @@ export default function Bitacora({ usuario }) {
     <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-base font-medium text-gray-900 dark:text-gray-100">Bitácora</h1>
-        <div className="flex items-center gap-3">
-          <input
-            value={busqueda}
-            onChange={e => setBusqueda(e.target.value)}
-            placeholder="🔍 Buscar por unidad…"
-            className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 w-56"
-          />
-          {puedeGestionar && (
-            <button onClick={() => setNuevoViajeAbierto(true)}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors">
-              + Nuevo viaje
-            </button>
-          )}
-        </div>
+        {puedeGestionar && (
+          <button onClick={() => setNuevoViajeAbierto(true)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors">
+            + Nuevo viaje
+          </button>
+        )}
+      </div>
+
+      <div className="px-6 pt-4 flex flex-wrap gap-2">
+        {puedeGestionar && (
+          <>
+            <MultiSelectFiltro label="Unidad" opciones={unidades.map(u => u.id)} seleccionados={filtroUnidades} onChange={setFiltroUnidades} etiquetas={nombrePorUnidad} soloEtiqueta />
+            <MultiSelectFiltro label="Chofer" opciones={choferes.map(c => c.id)} seleccionados={filtroChoferes} onChange={setFiltroChoferes} etiquetas={nombrePorChofer} soloEtiqueta />
+          </>
+        )}
+        <MultiSelectFiltro label="Estado" opciones={['En_curso', 'Rendido', 'Aprobado']} seleccionados={filtroEstados} onChange={setFiltroEstados} etiquetas={ESTADO_LABEL} soloEtiqueta />
       </div>
 
       <div className="p-6 space-y-3">
@@ -560,7 +568,7 @@ export default function Bitacora({ usuario }) {
         {loading ? (
           <p className="text-sm text-gray-400 text-center py-8">Cargando…</p>
         ) : viajesFiltrados.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-8">{viajes.length === 0 ? 'No hay viajes cargados todavía' : 'Ningún viaje coincide con la búsqueda'}</p>
+          <p className="text-sm text-gray-400 text-center py-8">{viajes.length === 0 ? 'No hay viajes cargados todavía' : 'Ningún viaje coincide con los filtros'}</p>
         ) : (
           viajesFiltrados.map(v => {
             const totalGastado = (v.gastos || []).reduce((s, g) => s + Number(g.monto), 0)
