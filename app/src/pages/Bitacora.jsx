@@ -15,6 +15,15 @@ const ESTADO_COLOR = {
 const ESTADO_LABEL = { En_curso: 'En curso', Rendido: 'Rendido — esperando aprobación', Aprobado: 'Aprobado' }
 const moneda = n => `$${Number(n || 0).toLocaleString('es-AR')}`
 
+// bitacora_viajes.fecha es un date (sin hora) — new Date('2026-09-18')
+// lo interpreta como medianoche UTC, y toLocaleDateString() lo corre un
+// día para atrás en zonas horarias negativas (ej. Argentina). Se arma
+// la fecha con los componentes locales para que no se mueva.
+function fechaViaje(fechaStr) {
+  const [y, m, d] = fechaStr.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString()
+}
+
 function NuevoViajeModal({ unidades, choferes, onClose, onSaved }) {
   const [form, setForm] = useState({
     id_unidad: '', id_chofer: '', fecha: new Date().toISOString().slice(0, 10), origen: '', destino: '',
@@ -486,7 +495,7 @@ export default function Bitacora({ usuario }) {
       <div class="info">
         <div><strong>Unidad:</strong> ${[viaje.unidades?.patente_serie, viaje.unidades?.descripcion].filter(Boolean).join(' — ')}</div>
         <div><strong>Chofer:</strong> ${viaje.chofer?.nombre ?? ''}</div>
-        <div><strong>Fecha:</strong> ${new Date(viaje.fecha).toLocaleDateString()}</div>
+        <div><strong>Fecha:</strong> ${fechaViaje(viaje.fecha)}</div>
         <div><strong>Estado:</strong> ${ESTADO_LABEL[viaje.estado] ?? viaje.estado}</div>
         <div><strong>Km:</strong> ${viaje.km ?? '—'}</div>
         <div><strong>Viáticos:</strong> ${moneda(viaje.viaticos_monto)} (${viaje.viaticos_metodo || '—'})</div>
@@ -564,7 +573,7 @@ export default function Bitacora({ usuario }) {
                       {v.origen ? `${v.origen} → ` : ''}{v.destino}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {[v.unidades?.patente_serie, v.unidades?.descripcion].filter(Boolean).join(' — ')} · {v.chofer?.nombre} · {new Date(v.fecha).toLocaleDateString()}
+                      {[v.unidades?.patente_serie, v.unidades?.descripcion].filter(Boolean).join(' — ')} · {v.chofer?.nombre} · {fechaViaje(v.fecha)}
                     </p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ESTADO_COLOR[v.estado] ?? ''}`}>{ESTADO_LABEL[v.estado]}</span>
