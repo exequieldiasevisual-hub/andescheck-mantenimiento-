@@ -123,6 +123,20 @@ async function leerPatenteGemini(imagenDataUrl) {
   return { patente: data.patente, textoDetectado: data.textoDetectado }
 }
 
+// Foto entera (achicada para no mandar varios MB), sin recorte — a
+// diferencia de Tesseract, un modelo de visión encuentra la patente solo
+// en la escena completa (auto, fondo y todo).
+const ANCHO_FOTO_COMPLETA = 1280
+
+function fotoCompletaAColor(img) {
+  const escala = Math.min(1, ANCHO_FOTO_COMPLETA / img.naturalWidth)
+  const canvas = document.createElement('canvas')
+  canvas.width = img.naturalWidth * escala
+  canvas.height = img.naturalHeight * escala
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+  return canvas.toDataURL('image/jpeg', 0.9)
+}
+
 export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }) {
   const [estado, setEstado] = useState('inicial') // inicial | recortando | procesando | resultado
   const [foto, setFoto] = useState(null) // { img, url }
@@ -144,6 +158,21 @@ export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }
       const cargada = await cargarImagen(file)
       setFoto(cargada)
       setSeleccion(null)
+      setEstado('procesando')
+      try {
+        const { patente } = await leerPatenteGemini(fotoCompletaAColor(cargada.img))
+        if (patente) {
+          setPatenteDetectada(patente)
+          setUnidadEncontrada(unidades.find(u => normalizar(u.patente_serie) === patente) || null)
+          setEstado('resultado')
+          return
+        }
+      } catch (err) {
+        console.warn('Gemini no encontró la patente en la foto completa:', err?.message)
+      }
+      // Gemini no la encontró (o falló) con la foto entera — pide marcar
+      // el recuadro a mano, como antes.
+      setError('No se detectó la patente en la foto completa — marcá el recuadro justo sobre ella')
       setEstado('recortando')
     } catch {
       setError('No se pudo abrir la foto — probá de nuevo')
