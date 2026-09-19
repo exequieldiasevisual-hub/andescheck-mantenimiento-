@@ -13,7 +13,7 @@
 //   GEMINI_API_KEY   (Google AI Studio → https://aistudio.google.com/apikey)
 
 const PATRON_PATENTE = /([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})/
-const MODELO = 'gemini-2.0-flash'
+const MODELO = 'gemini-3.6-flash'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
