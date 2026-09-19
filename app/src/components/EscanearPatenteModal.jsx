@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Modal from './Modal'
 import BuscadorUnidad from './BuscadorUnidad'
+import { supabase } from '../lib/supabase'
 
 const PATRON_PATENTE = /([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3})/
 const ANCHO_RECORTE_OBJETIVO = 640
@@ -92,6 +93,36 @@ async function leerPatenteLocal(candidatos) {
   return { patente: null, textoDetectado: mejorTexto }
 }
 
+// Recorte a color, sin escala de grises ni inversión — un modelo de visión
+// como Gemini lee la foto tal cual, no necesita los trucos que sí hace
+// falta para el OCR clásico de Tesseract.
+function recortarColor(img, rectNatural) {
+  const escala = ANCHO_RECORTE_OBJETIVO / rectNatural.width
+  const canvas = document.createElement('canvas')
+  canvas.width = ANCHO_RECORTE_OBJETIVO
+  canvas.height = Math.max(1, rectNatural.height * escala)
+  canvas.getContext('2d').drawImage(
+    img,
+    rectNatural.x, rectNatural.y, rectNatural.width, rectNatural.height,
+    0, 0, canvas.width, canvas.height
+  )
+  return canvas.toDataURL('image/jpeg', 0.9)
+}
+
+// Primera opción: Gemini (backend serverless). Si no está configurado
+// todavía o falla por cualquier motivo, quien llama cae al OCR local.
+async function leerPatenteGemini(imagenDataUrl) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const resp = await fetch('/api/leer-patente-gemini', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+    body: JSON.stringify({ imagenBase64: imagenDataUrl }),
+  })
+  const data = await resp.json().catch(() => null)
+  if (!resp.ok || !data?.ok) throw new Error(data?.msg || `HTTP ${resp.status}`)
+  return { patente: data.patente, textoDetectado: data.textoDetectado }
+}
+
 export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }) {
   const [estado, setEstado] = useState('inicial') // inicial | recortando | procesando | resultado
   const [foto, setFoto] = useState(null) // { img, url }
@@ -161,8 +192,21 @@ export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }
         width: seleccion.width * escalaNatural,
         height: seleccion.height * escalaNatural,
       }
-      const candidatos = recortarYPreparar(foto.img, rectNatural)
-      const { patente, textoDetectado } = await leerPatenteLocal(candidatos)
+      let patente = null
+      let textoDetectado = ''
+      try {
+        const resultadoGemini = await leerPatenteGemini(recortarColor(foto.img, rectNatural))
+        patente = resultadoGemini.patente
+        textoDetectado = resultadoGemini.textoDetectado
+      } catch (err) {
+        console.warn('Gemini no disponible, usando OCR local:', err?.message)
+      }
+      if (!patente) {
+        const candidatos = recortarYPreparar(foto.img, rectNatural)
+        const resultadoLocal = await leerPatenteLocal(candidatos)
+        patente = resultadoLocal.patente
+        textoDetectado = resultadoLocal.textoDetectado
+      }
       if (!patente) {
         const preview = textoDetectado?.trim().slice(0, 80)
         setError(preview ? `No se detectó una patente. Texto leído: "${preview}"` : 'No se detectó texto en el recorte — probá marcando justo la patente')
