@@ -5,13 +5,13 @@ import MultiSelectFiltro from '../components/MultiSelectFiltro'
 const TARJETAS = [
   { key: 'unidades_activas', label: 'Unidades activas', porcentaje: true, denominador: 'unidades_total' },
   { key: 'unidades_operativas', label: 'Unidades operativas', porcentaje: true },
-  { key: 'ot_abiertas', label: 'OT abiertas' },
+  { key: 'ot_abiertas', label: 'OT abiertas', destino: 'ot' },
   { key: 'rutinas_vencidas', label: 'Rutinas vencidas', porcentaje: true },
-  { key: 'novedades_pendientes', label: 'Novedades pendientes' },
-  { key: 'np_pendientes', label: 'NP pendientes' },
-  { key: 'docs_vencidos', label: 'Documentos vencidos', porcentaje: true },
-  { key: 'docs_por_vencer', label: 'Documentos por vencer' },
-  { key: 'combustible_alertas', label: 'Alertas de combustible' },
+  { key: 'novedades_pendientes', label: 'Novedades pendientes', destino: 'novedades' },
+  { key: 'np_pendientes', label: 'NP pendientes', destino: 'notas_pedido' },
+  { key: 'docs_vencidos', label: 'Documentos vencidos', porcentaje: true, destino: 'documentos' },
+  { key: 'docs_por_vencer', label: 'Documentos por vencer', destino: 'documentos' },
+  { key: 'combustible_alertas', label: 'Alertas de combustible', destino: 'combustible' },
 ]
 
 const PUNTO_COLA = {
@@ -133,14 +133,14 @@ export default function Dashboard({ abrirOt, navegarA }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {TARJETAS.map(t => (
           <div key={t.key}
-            onClick={t.key === 'np_pendientes' ? () => navegarA('notas_pedido') : undefined}
-            className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 relative ${t.key === 'np_pendientes' ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700' : ''}`}>
+            onClick={t.destino ? () => navegarA(t.destino) : undefined}
+            className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 relative ${t.destino ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700' : ''}`}>
             <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{valorTarjeta(t)}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.label}</p>
             {t.porcentaje && (
               <button
                 type="button"
-                onClick={() => setModoPorcentaje(m => ({ ...m, [t.key]: !m[t.key] }))}
+                onClick={e => { e.stopPropagation(); setModoPorcentaje(m => ({ ...m, [t.key]: !m[t.key] })) }}
                 title="Alternar entre número y porcentaje de la flota"
                 className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
               >
