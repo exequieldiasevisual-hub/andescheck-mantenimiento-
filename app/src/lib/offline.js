@@ -83,7 +83,10 @@ export async function sincronizarCola(supabase) {
       try {
         const items = []
         for (let i = 0; i < op.args.p_items.length; i++) {
-          items.push({ ...op.args.p_items[i], foto_url: await subirFotoDataUrl(supabase, op.fotosDataUrl[i], op.empresaId) })
+          const fotos = [].concat(op.fotosDataUrl[i]) // fotosDataUrl[i]: array de dataURL (1 a 3) del ítem i
+          const fotos_urls = []
+          for (const f of fotos) fotos_urls.push(await subirFotoDataUrl(supabase, f, op.empresaId))
+          items.push({ ...op.args.p_items[i], fotos_urls })
         }
         const { data, error: errRpc } = await supabase.rpc('crear_nota_pedido', { ...op.args, p_items: items })
         error = errRpc || (data && data.ok === false ? new Error(data.msg || 'No se pudo sincronizar') : null)

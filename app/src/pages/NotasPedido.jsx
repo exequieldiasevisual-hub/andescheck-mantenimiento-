@@ -50,7 +50,8 @@ const blobADataUrl = blob => new Promise((resolve, reject) => {
   r.readAsDataURL(blob)
 })
 
-const itemVacio = () => ({ producto: '', cantidad: '', observacion: '', foto: null })
+const MAX_FOTOS = 3
+const itemVacio = () => ({ producto: '', cantidad: '', observacion: '', fotos: [] })
 
 function NuevaNotaModal({ unidades, usuario, onClose, onSaved }) {
   const [idUnidad, setIdUnidad] = useState('')
@@ -63,13 +64,23 @@ function NuevaNotaModal({ unidades, usuario, onClose, onSaved }) {
 
   function setItem(i, k, v) { setItems(its => its.map((it, j) => (j === i ? { ...it, [k]: v } : it))) }
 
+  // Suma las fotos elegidas (cámara o galería) sin pasar el máximo por producto.
+  function agregarFotos(i, files) {
+    const nuevas = Array.from(files || [])
+    if (nuevas.length === 0) return
+    const actuales = items[i].fotos
+    if (actuales.length + nuevas.length > MAX_FOTOS) setError(`Producto ${i + 1}: máximo ${MAX_FOTOS} fotos (se agregaron las primeras)`)
+    else setError('')
+    setItem(i, 'fotos', [...actuales, ...nuevas].slice(0, MAX_FOTOS))
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     if (!idUnidad) { setError('Elegí la unidad'); return }
     for (const [i, it] of items.entries()) {
       if (!it.producto.trim()) { setError(`Producto ${i + 1}: falta el nombre`); return }
       if (!(Number(it.cantidad) > 0)) { setError(`Producto ${i + 1}: la cantidad debe ser mayor a 0`); return }
-      if (!it.foto) { setError(`Producto ${i + 1}: la foto es obligatoria`); return }
+      if (it.fotos.length === 0) { setError(`Producto ${i + 1}: hace falta al menos una foto`); return }
     }
     setSaving(true)
     setError('')
@@ -84,7 +95,7 @@ function NuevaNotaModal({ unidades, usuario, onClose, onSaved }) {
 
       if (!online) {
         const fotos = []
-        for (const it of items) fotos.push(await blobADataUrl(await comprimirFoto(it.foto, 800, 0.6)))
+        for (const it of items) fotos.push(await Promise.all(it.fotos.map(async f => blobADataUrl(await comprimirFoto(f, 800, 0.6)))))
         try {
           encolarNotaPedido({ ...argsBase, p_items: itemsBase }, fotos, `Nota de pedido: ${items.length} producto(s)`, usuario.empresa_id)
         } catch {
@@ -98,11 +109,15 @@ function NuevaNotaModal({ unidades, usuario, onClose, onSaved }) {
 
       const itemsConFoto = []
       for (const [i, it] of itemsBase.entries()) {
-        const blob = await comprimirFoto(items[i].foto, 1280, 0.8)
-        const path = `${usuario.empresa_id}/notas-pedido/${crypto.randomUUID()}.jpg`
-        const { error: upErr } = await supabase.storage.from('ot-fotos').upload(path, blob, { contentType: 'image/jpeg' })
-        if (upErr) throw upErr
-        itemsConFoto.push({ ...it, foto_url: supabase.storage.from('ot-fotos').getPublicUrl(path).data.publicUrl })
+        const fotos_urls = []
+        for (const f of items[i].fotos) {
+          const blob = await comprimirFoto(f, 1280, 0.8)
+          const path = `${usuario.empresa_id}/notas-pedido/${crypto.randomUUID()}.jpg`
+          const { error: upErr } = await supabase.storage.from('ot-fotos').upload(path, blob, { contentType: 'image/jpeg' })
+          if (upErr) throw upErr
+          fotos_urls.push(supabase.storage.from('ot-fotos').getPublicUrl(path).data.publicUrl)
+        }
+        itemsConFoto.push({ ...it, fotos_urls })
       }
       const { data, error: rpcErr } = await supabase.rpc('crear_nota_pedido', { ...argsBase, p_items: itemsConFoto })
       if (rpcErr) throw rpcErr
@@ -153,10 +168,28 @@ function NuevaNotaModal({ unidades, usuario, onClose, onSaved }) {
                 <input type="number" min="0" step="0.01" value={it.cantidad} onChange={e => setItem(i, 'cantidad', e.target.value)} placeholder="Cantidad *" className={INPUT} />
               </div>
               <input value={it.observacion} onChange={e => setItem(i, 'observacion', e.target.value)} placeholder="Observación" className={INPUT} />
-              <label className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 cursor-pointer w-fit hover:bg-gray-50 dark:hover:bg-gray-700 ${it.foto ? 'border-green-300 text-green-700 dark:text-green-400' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>
-                📷 {it.foto ? it.foto.name : 'Foto obligatoria'}
-                <input type="file" accept="image/*" capture="environment" onChange={e => setItem(i, 'foto', e.target.files[0] ?? null)} className="hidden" />
-              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                {it.fotos.map((f, k) => (
+                  <div key={k} className="relative">
+                    <img src={URL.createObjectURL(f)} alt="" className="w-14 h-14 object-cover rounded-md border border-gray-200 dark:border-gray-700" />
+                    <button type="button" onClick={() => setItem(i, 'fotos', it.fotos.filter((_, j) => j !== k))}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white text-xs leading-none" aria-label="Quitar foto">×</button>
+                  </div>
+                ))}
+                {it.fotos.length < MAX_FOTOS && (
+                  <>
+                    <label className="flex items-center gap-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400">
+                      📷 Sacar foto
+                      <input type="file" accept="image/*" capture="environment" onChange={e => { agregarFotos(i, e.target.files); e.target.value = '' }} className="hidden" />
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400">
+                      🖼️ Elegir del dispositivo
+                      <input type="file" accept="image/*" multiple onChange={e => { agregarFotos(i, e.target.files); e.target.value = '' }} className="hidden" />
+                    </label>
+                  </>
+                )}
+                <span className="text-xs text-gray-400">{it.fotos.length}/{MAX_FOTOS} · al menos 1</span>
+              </div>
             </div>
           ))}
           <button type="button" onClick={() => setItems(its => [...its, itemVacio()])} className="text-sm text-blue-600 hover:underline">+ Agregar producto</button>
@@ -226,9 +259,13 @@ function DetalleModal({ nota, onClose }) {
         <div className="space-y-2">
           {(nota.items || []).map(it => (
             <div key={it.id} className="flex items-center gap-3 border border-gray-200 dark:border-gray-700 rounded-lg p-2">
-              <button type="button" onClick={() => setFoto(it.foto_url)} className="shrink-0">
-                <img src={it.foto_url} alt={it.producto} className="w-16 h-16 object-cover rounded-md" />
-              </button>
+              <div className="flex gap-1 shrink-0">
+                {(it.fotos_urls?.length ? it.fotos_urls : [it.foto_url]).map(url => (
+                  <button key={url} type="button" onClick={() => setFoto(url)}>
+                    <img src={url} alt={it.producto} className="w-16 h-16 object-cover rounded-md" />
+                  </button>
+                ))}
+              </div>
               <div className="min-w-0">
                 <p className="font-medium text-gray-900 dark:text-gray-100">{it.producto} <span className="text-gray-500 font-normal">× {it.cantidad}</span></p>
                 {it.observacion && <p className="text-xs text-gray-500 dark:text-gray-400">{it.observacion}</p>}
@@ -265,7 +302,7 @@ export default function NotasPedido({ usuario }) {
   async function cargar() {
     const [{ data: notasData }, { data: unidadesData }] = await Promise.all([
       supabase.from('notas_pedido')
-        .select('*, unidades(descripcion, patente_serie), solicitante:usuarios!notas_pedido_id_solicitante_fkey(nombre), items:notas_pedido_items(id, producto, cantidad, foto_url, observacion)')
+        .select('*, unidades(descripcion, patente_serie), solicitante:usuarios!notas_pedido_id_solicitante_fkey(nombre), items:notas_pedido_items(id, producto, cantidad, foto_url, fotos_urls, observacion)')
         .order('fecha', { ascending: false }),
       supabase.from('unidades').select('id, descripcion, patente_serie').eq('activo', true).order('descripcion'),
     ])
