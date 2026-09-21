@@ -156,7 +156,7 @@ function DocumentoModal({ documento, unidades, empresaId, onClose, onSaved }) {
   )
 }
 
-export default function Documentos({ usuario, filtroUnidadInicial }) {
+export default function Documentos({ usuario, filtroUnidadInicial, filtroEstadoInicial }) {
   const [items, setItems] = useState([])
   const [unidades, setUnidades] = useState([])
   const [loading, setLoading] = useState(true)
@@ -166,7 +166,7 @@ export default function Documentos({ usuario, filtroUnidadInicial }) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroUnidad, setFiltroUnidad] = useState(filtroUnidadInicial || '')
   const [filtroTipo, setFiltroTipo] = useState([])
-  const [filtroEstado, setFiltroEstado] = useState([])
+  const [filtroEstado, setFiltroEstado] = useState(filtroEstadoInicial ? [filtroEstadoInicial] : [])
   const [filtroCentro, setFiltroCentro] = useState([])
   const [filtroTipoUnidad, setFiltroTipoUnidad] = useState([])
   const [filtroCiudad, setFiltroCiudad] = useState([])

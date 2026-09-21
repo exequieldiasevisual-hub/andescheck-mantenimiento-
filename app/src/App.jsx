@@ -58,6 +58,7 @@ export default function App() {
   const [filtroUnidadInicial, setFiltroUnidadInicial] = useState(null)
   const [filtroUnidadTextoInicial, setFiltroUnidadTextoInicial] = useState(null)
   const [escaneoNonce, setEscaneoNonce] = useState(0)
+  const [filtroEstadoInicial, setFiltroEstadoInicial] = useState(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -97,15 +98,15 @@ export default function App() {
     if (paginaEfectiva === 'componentes') return <Componentes usuario={usuario} />
     if (paginaEfectiva === 'stock') return <Stock usuario={usuario} />
     if (paginaEfectiva === 'herramientas') return <Herramientas usuario={usuario} />
-  if (paginaEfectiva === 'novedades') return <Novedades usuario={usuario} abrirOt={abrirOtDesdeNovedad} filtroUnidadInicial={filtroUnidadInicial} />
+  if (paginaEfectiva === 'novedades') return <Novedades usuario={usuario} abrirOt={abrirOtDesdeNovedad} filtroUnidadInicial={filtroUnidadInicial} filtroEstadoInicial={filtroEstadoInicial} />
     if (paginaEfectiva === 'combustible') return <Combustible usuario={usuario} />
     if (paginaEfectiva === 'checklists') return <Checklists key={escaneoNonce} usuario={usuario} unidadInicial={filtroUnidadInicial} />
     if (paginaEfectiva === 'rutinas') return <RutinasMantenimiento usuario={usuario} abrirOt={abrirOtDesdeNovedad} filtroUnidadTextoInicial={filtroUnidadTextoInicial} />
     if (paginaEfectiva === 'bitacora') return <Bitacora usuario={usuario} />
-    if (paginaEfectiva === 'notas_pedido') return <NotasPedido usuario={usuario} />
+    if (paginaEfectiva === 'notas_pedido') return <NotasPedido usuario={usuario} filtroEstadoInicial={filtroEstadoInicial} />
     if (paginaEfectiva === 'proveedores') return <Proveedores usuario={usuario} />
     if (paginaEfectiva === 'secuencias') return <Secuencias usuario={usuario} />
-    if (paginaEfectiva === 'documentos') return <Documentos usuario={usuario} filtroUnidadInicial={filtroUnidadInicial} />
+    if (paginaEfectiva === 'documentos') return <Documentos usuario={usuario} filtroUnidadInicial={filtroUnidadInicial} filtroEstadoInicial={filtroEstadoInicial} />
     if (paginaEfectiva === 'reportes') return <Reportes />
     if (paginaEfectiva === 'configuracion') return <Configuracion usuario={usuario} />
     if (paginaEfectiva === 'usuarios') return <Usuarios usuario={usuario} />
@@ -123,6 +124,7 @@ export default function App() {
     setFiltroSaludInicial(opciones?.salud ?? null)
     setFiltroUnidadInicial(opciones?.unidad ?? null)
     setFiltroUnidadTextoInicial(opciones?.unidadTexto ?? null)
+    setFiltroEstadoInicial(opciones?.estado ?? null)
     // Cada escaneo remonta Checklists aunque ya se esté en esa página.
     if (opciones?.abrirChecklist) setEscaneoNonce(n => n + 1)
     setPagina(p)

@@ -51,7 +51,7 @@ function ElegirOtModal({ novedad, otAbierta, onClose, onElegirExistente, onElegi
   )
 }
 
-export default function Novedades({ usuario, abrirOt, filtroUnidadInicial }) {
+export default function Novedades({ usuario, abrirOt, filtroUnidadInicial, filtroEstadoInicial }) {
   const [novedades, setNovedades] = useState([])
   const [unidades, setUnidades] = useState([])
   const [secuencias, setSecuencias] = useState([])
@@ -65,7 +65,7 @@ export default function Novedades({ usuario, abrirOt, filtroUnidadInicial }) {
   const [novedadEliminar, setNovedadEliminar] = useState(null)
   const [busqueda, setBusqueda] = useState('')
   const [filtroUnidad, setFiltroUnidad] = useState(filtroUnidadInicial || '')
-  const [filtroEstado, setFiltroEstado] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState(filtroEstadoInicial || '')
   const [filtroCentro, setFiltroCentro] = useState([])
   const [filtroTipoUnidad, setFiltroTipoUnidad] = useState([])
   const [filtroCiudad, setFiltroCiudad] = useState([])

@@ -283,7 +283,7 @@ function DetalleModal({ nota, onClose }) {
   )
 }
 
-export default function NotasPedido({ usuario }) {
+export default function NotasPedido({ usuario, filtroEstadoInicial }) {
   const puedeGestionar = ['administrador', 'supervisor'].includes(usuario.rol)
   const [notas, setNotas] = useState([])
   const [unidades, setUnidades] = useState([])
@@ -296,7 +296,7 @@ export default function NotasPedido({ usuario }) {
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
   const [filtroUnidades, setFiltroUnidades] = useState([])
-  const [filtroEstados, setFiltroEstados] = useState(['Pendiente', 'Aprobada'])
+  const [filtroEstados, setFiltroEstados] = useState(filtroEstadoInicial ? [filtroEstadoInicial] : ['Pendiente', 'Aprobada'])
   const [filtroPrioridades, setFiltroPrioridades] = useState([])
 
   async function cargar() {
