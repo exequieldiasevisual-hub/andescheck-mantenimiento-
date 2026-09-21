@@ -8,7 +8,7 @@ const TARJETAS = [
   { key: 'ot_abiertas', label: 'OT abiertas' },
   { key: 'rutinas_vencidas', label: 'Rutinas vencidas', porcentaje: true },
   { key: 'novedades_pendientes', label: 'Novedades pendientes' },
-  { key: 'stock_critico', label: 'Stock crítico' },
+  { key: 'np_pendientes', label: 'NP pendientes' },
   { key: 'docs_vencidos', label: 'Documentos vencidos', porcentaje: true },
   { key: 'docs_por_vencer', label: 'Documentos por vencer' },
   { key: 'combustible_alertas', label: 'Alertas de combustible' },
@@ -40,6 +40,14 @@ export default function Dashboard({ abrirOt, navegarA }) {
   const [filtroCentro, setFiltroCentro] = useState([])
   const [filtroTipo, setFiltroTipo] = useState([])
   const [filtroCiudad, setFiltroCiudad] = useState([])
+  const [npPendientes, setNpPendientes] = useState(0)
+
+  // No pasa por get_dashboard: cuenta directo las notas de pedido pendientes
+  // (los filtros de centro/tipo/ciudad no aplican a esta tarjeta).
+  useEffect(() => {
+    supabase.from('notas_pedido').select('id', { count: 'exact', head: true }).eq('estado', 'Pendiente')
+      .then(({ count }) => setNpPendientes(count ?? 0))
+  }, [])
 
   useEffect(() => {
     supabase.from('unidades').select('centro_costo, tipo, ciudad').eq('activo', true)
@@ -82,7 +90,7 @@ export default function Dashboard({ abrirOt, navegarA }) {
   }
 
   function valorTarjeta(t) {
-    const valor = datos[t.key] ?? 0
+    const valor = t.key === 'np_pendientes' ? npPendientes : datos[t.key] ?? 0
     if (!t.porcentaje || !modoPorcentaje[t.key]) return valor
     const total = datos[t.denominador || 'unidades_activas'] || 0
     return total > 0 ? `${Math.round((valor / total) * 100)}%` : '—'
