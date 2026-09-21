@@ -32,6 +32,7 @@ const SECCIONES = [
       { key: 'checklists', label: 'Checklists' },
       { key: 'rutinas', label: 'Rutinas de Mantenimiento' },
       { key: 'bitacora', label: 'Bitácora' },
+      { key: 'notas_pedido', label: 'Notas de pedido' },
     ],
   },
   {
@@ -57,9 +58,10 @@ const SECCIONES = [
 
 // El técnico solo trabaja sus OT, carga novedades y consulta herramientas —
 // nada de maestros ni métricas generales de la empresa.
-export const PAGINAS_TECNICO = ['ot', 'novedades', 'herramientas']
-// El chofer solo carga gastos y rinde sus propios viajes en la Bitácora.
-export const PAGINAS_CHOFER = ['bitacora']
+export const PAGINAS_TECNICO = ['ot', 'novedades', 'herramientas', 'notas_pedido']
+// El chofer solo carga gastos y rinde sus propios viajes en la Bitácora,
+// y pide material con notas de pedido.
+export const PAGINAS_CHOFER = ['bitacora', 'notas_pedido']
 
 export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
   const { tema, alternar } = useTema()

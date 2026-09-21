@@ -25,6 +25,23 @@ function guardarCola(cola) {
   window.dispatchEvent(new Event(EVENTO_CAMBIO))
 }
 
+// Nota de pedido offline: las fotos (obligatorias) viajan en la cola como
+// dataURL y se suben a Storage al sincronizar. Lanza si localStorage no tiene
+// espacio, para que la pantalla avise en vez de perder la nota en silencio.
+export function encolarNotaPedido(args, fotosDataUrl, descripcion, empresaId) {
+  const cola = obtenerCola()
+  cola.push({ id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, modo: 'nota_pedido', args, fotosDataUrl, empresaId, descripcion, fecha: new Date().toISOString() })
+  guardarCola(cola)
+}
+
+async function subirFotoDataUrl(supabase, dataUrl, empresaId) {
+  const blob = await (await fetch(dataUrl)).blob()
+  const path = `${empresaId}/notas-pedido/${crypto.randomUUID()}.jpg`
+  const { error } = await supabase.storage.from('ot-fotos').upload(path, blob, { contentType: 'image/jpeg' })
+  if (error) throw error
+  return supabase.storage.from('ot-fotos').getPublicUrl(path).data.publicUrl
+}
+
 // tabla: nombre de la tabla destino. payload: lo que se insertaría con
 // supabase.from(tabla).insert(payload). descripcion: texto para mostrar
 // en la cola pendiente ("Novedad: unidad X").
@@ -62,7 +79,16 @@ export async function sincronizarCola(supabase) {
   let sincronizados = 0
   for (const op of cola) {
     let error = null
-    if (op.modo === 'rpc') {
+    if (op.modo === 'nota_pedido') {
+      try {
+        const items = []
+        for (let i = 0; i < op.args.p_items.length; i++) {
+          items.push({ ...op.args.p_items[i], foto_url: await subirFotoDataUrl(supabase, op.fotosDataUrl[i], op.empresaId) })
+        }
+        const { data, error: errRpc } = await supabase.rpc('crear_nota_pedido', { ...op.args, p_items: items })
+        error = errRpc || (data && data.ok === false ? new Error(data.msg || 'No se pudo sincronizar') : null)
+      } catch (err) { error = err }
+    } else if (op.modo === 'rpc') {
       const { data, error: errRpc } = await supabase.rpc(op.funcion, op.args)
       error = errRpc || (data && data.ok === false ? new Error(data.msg || 'No se pudo sincronizar') : null)
       if (!error && op.funcion === 'ejecutar_checklist' && data?.id_ejecucion) {

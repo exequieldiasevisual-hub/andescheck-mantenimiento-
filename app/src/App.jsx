@@ -17,6 +17,7 @@ import Combustible from './pages/Combustible'
 import Checklists from './pages/Checklists'
 import RutinasMantenimiento from './pages/RutinasMantenimiento'
 import Bitacora from './pages/Bitacora'
+import NotasPedido from './pages/NotasPedido'
 import Proveedores from './pages/Proveedores'
 import Secuencias from './pages/Secuencias'
 import Documentos from './pages/Documentos'
@@ -35,6 +36,7 @@ const TITULOS = {
   checklists: 'Checklists',
   rutinas: 'Rutinas de Mantenimiento',
   bitacora: 'Bitácora',
+  notas_pedido: 'Notas de pedido',
   stock: 'Stock',
   herramientas: 'Herramientas',
   documentos: 'Documentos',
@@ -99,6 +101,7 @@ export default function App() {
     if (paginaEfectiva === 'checklists') return <Checklists usuario={usuario} />
     if (paginaEfectiva === 'rutinas') return <RutinasMantenimiento usuario={usuario} abrirOt={abrirOtDesdeNovedad} filtroUnidadTextoInicial={filtroUnidadTextoInicial} />
     if (paginaEfectiva === 'bitacora') return <Bitacora usuario={usuario} />
+    if (paginaEfectiva === 'notas_pedido') return <NotasPedido usuario={usuario} />
     if (paginaEfectiva === 'proveedores') return <Proveedores usuario={usuario} />
     if (paginaEfectiva === 'secuencias') return <Secuencias usuario={usuario} />
     if (paginaEfectiva === 'documentos') return <Documentos usuario={usuario} filtroUnidadInicial={filtroUnidadInicial} />
