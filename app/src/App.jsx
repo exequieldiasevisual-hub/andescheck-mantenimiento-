@@ -57,6 +57,7 @@ export default function App() {
   const [filtroSaludInicial, setFiltroSaludInicial] = useState(null)
   const [filtroUnidadInicial, setFiltroUnidadInicial] = useState(null)
   const [filtroUnidadTextoInicial, setFiltroUnidadTextoInicial] = useState(null)
+  const [escaneoNonce, setEscaneoNonce] = useState(0)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -98,7 +99,7 @@ export default function App() {
     if (paginaEfectiva === 'herramientas') return <Herramientas usuario={usuario} />
   if (paginaEfectiva === 'novedades') return <Novedades usuario={usuario} abrirOt={abrirOtDesdeNovedad} filtroUnidadInicial={filtroUnidadInicial} />
     if (paginaEfectiva === 'combustible') return <Combustible usuario={usuario} />
-    if (paginaEfectiva === 'checklists') return <Checklists usuario={usuario} />
+    if (paginaEfectiva === 'checklists') return <Checklists key={escaneoNonce} usuario={usuario} unidadInicial={filtroUnidadInicial} />
     if (paginaEfectiva === 'rutinas') return <RutinasMantenimiento usuario={usuario} abrirOt={abrirOtDesdeNovedad} filtroUnidadTextoInicial={filtroUnidadTextoInicial} />
     if (paginaEfectiva === 'bitacora') return <Bitacora usuario={usuario} />
     if (paginaEfectiva === 'notas_pedido') return <NotasPedido usuario={usuario} />
@@ -122,6 +123,8 @@ export default function App() {
     setFiltroSaludInicial(opciones?.salud ?? null)
     setFiltroUnidadInicial(opciones?.unidad ?? null)
     setFiltroUnidadTextoInicial(opciones?.unidadTexto ?? null)
+    // Cada escaneo remonta Checklists aunque ya se esté en esa página.
+    if (opciones?.abrirChecklist) setEscaneoNonce(n => n + 1)
     setPagina(p)
   }
 

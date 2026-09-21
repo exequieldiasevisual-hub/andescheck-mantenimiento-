@@ -18,8 +18,8 @@ function capturarUbicacion() {
   })
 }
 
-export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorPlantilla, empresaId, onClose, onSaved }) {
-  const [idUnidad, setIdUnidad] = useState('')
+export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorPlantilla, empresaId, unidadInicial = '', onClose, onSaved }) {
+  const [idUnidad, setIdUnidad] = useState(unidadInicial)
   const [idPlantilla, setIdPlantilla] = useState('')
   const [respuestas, setRespuestas] = useState({})
   const [fotos, setFotos] = useState([])

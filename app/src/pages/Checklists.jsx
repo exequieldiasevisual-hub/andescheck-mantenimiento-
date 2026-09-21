@@ -157,13 +157,14 @@ function HistorialEjecucion({ ejecucion }) {
   )
 }
 
-function EjecutarEHistorial({ usuario }) {
+function EjecutarEHistorial({ usuario, unidadInicial }) {
   const [unidades, setUnidades] = useState([])
   const [plantillas, setPlantillas] = useState([])
   const [itemsPorPlantilla, setItemsPorPlantilla] = useState({})
   const [ejecuciones, setEjecuciones] = useState([])
   const [loading, setLoading] = useState(true)
-  const [modalAbierto, setModalAbierto] = useState(false)
+  // Al llegar desde el escáner de patente el checklist se abre solo, con la unidad ya elegida.
+  const [modalAbierto, setModalAbierto] = useState(!!unidadInicial)
   const [mensaje, setMensaje] = useState('')
 
   async function cargar() {
@@ -229,8 +230,9 @@ function EjecutarEHistorial({ usuario }) {
         )}
       </div>
 
-      {modalAbierto && (
+      {modalAbierto && !loading && (
         <EjecutarChecklistModal
+          unidadInicial={unidadInicial ?? ''}
           unidades={unidades}
           plantillas={plantillas}
           itemsPorPlantilla={itemsPorPlantilla}
@@ -253,8 +255,9 @@ function EjecutarEHistorial({ usuario }) {
   )
 }
 
-export default function Checklists({ usuario }) {
+export default function Checklists({ usuario, unidadInicial }) {
   const [tab, setTab] = useState('ejecutar')
+  const esChofer = usuario?.rol === 'chofer'
 
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
@@ -271,18 +274,18 @@ export default function Checklists({ usuario }) {
         >
           Ejecutar / Historial
         </button>
-        <button
+        {!esChofer && <button
           onClick={() => setTab('plantillas')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             tab === 'plantillas' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
           }`}
         >
           Plantillas
-        </button>
+        </button>}
       </div>
 
       <div className="p-6">
-        {tab === 'ejecutar' ? <EjecutarEHistorial usuario={usuario} /> : <Plantillas usuario={usuario} />}
+        {tab === 'ejecutar' ? <EjecutarEHistorial usuario={usuario} unidadInicial={unidadInicial} /> : <Plantillas usuario={usuario} />}
       </div>
     </div>
   )
