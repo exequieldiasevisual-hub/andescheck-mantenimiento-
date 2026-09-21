@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useOnline, encolarNotaPedido } from '../lib/offline'
+import { comprimirFoto, blobADataUrl } from '../lib/fotos'
 import Modal from '../components/Modal'
 import ConfirmModal from '../components/ConfirmModal'
 import MotivoModal from '../components/MotivoModal'
@@ -22,33 +23,6 @@ const INPUT = 'w-full border border-gray-200 dark:border-gray-700 rounded-lg px-
 const moneda = n => Number(n ?? 0).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 })
 const fecha = f => new Date(f).toLocaleDateString('es-AR')
 const nombreUnidad = u => [u?.patente_serie, u?.descripcion].filter(Boolean).join(' — ')
-
-// Redimensiona y comprime la foto en un canvas; devuelve un Blob jpeg.
-// Offline se usa una versión más chica para que la cola de localStorage aguante.
-function comprimirFoto(file, ancho, calidad) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      const escala = Math.min(1, ancho / img.width)
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(img.width * escala)
-      canvas.height = Math.round(img.height * escala)
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
-      URL.revokeObjectURL(url)
-      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('No se pudo procesar la foto'))), 'image/jpeg', calidad)
-    }
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No se pudo leer la foto')) }
-    img.src = url
-  })
-}
-
-const blobADataUrl = blob => new Promise((resolve, reject) => {
-  const r = new FileReader()
-  r.onload = () => resolve(r.result)
-  r.onerror = () => reject(new Error('No se pudo leer la foto'))
-  r.readAsDataURL(blob)
-})
 
 const MAX_FOTOS = 3
 const itemVacio = () => ({ producto: '', cantidad: '', observacion: '', fotos: [] })

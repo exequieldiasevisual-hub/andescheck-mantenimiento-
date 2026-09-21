@@ -31,17 +31,19 @@ export default function PlantillaChecklistModal({ plantilla, empresaId, onClose,
       .then(({ data }) => setItems((data || []).map(i => ({
         pregunta: i.pregunta, tipo_respuesta: i.tipo_respuesta, dispara_novedad: i.dispara_novedad,
         valor_disparador: i.valor_disparador || '', novedad_tipo: i.novedad_tipo || '', novedad_descripcion: i.novedad_descripcion || '',
+        foto_obligatoria: !!i.foto_obligatoria,
       }))))
   }, [plantilla?.id])
 
   function agregarItem() {
-    setItems(i => [...i, { pregunta: '', tipo_respuesta: 'si_no', dispara_novedad: false, valor_disparador: '', novedad_tipo: '', novedad_descripcion: '' }])
+    setItems(i => [...i, { pregunta: '', tipo_respuesta: 'si_no', dispara_novedad: false, valor_disparador: '', novedad_tipo: '', novedad_descripcion: '', foto_obligatoria: false }])
   }
   function actualizarItem(idx, campo, valor) {
     setItems(i => i.map((x, j) => {
       if (j !== idx) return x
       const actualizado = { ...x, [campo]: valor }
-      if (campo === 'tipo_respuesta') { actualizado.dispara_novedad = false; actualizado.valor_disparador = '' }
+      if (campo === 'tipo_respuesta') { actualizado.dispara_novedad = false; actualizado.valor_disparador = ''; actualizado.foto_obligatoria = false }
+      if (campo === 'dispara_novedad' && !valor) actualizado.foto_obligatoria = false
       return actualizado
     }))
   }
@@ -70,6 +72,8 @@ export default function PlantillaChecklistModal({ plantilla, empresaId, onClose,
         dispara_novedad: i.dispara_novedad, valor_disparador: i.dispara_novedad ? i.valor_disparador || null : null,
         novedad_tipo: i.dispara_novedad ? i.novedad_tipo || null : null,
         novedad_descripcion: i.dispara_novedad ? (i.novedad_descripcion.trim() || null) : null,
+        // La foto obligatoria solo aplica a respuestas puntuales (no a la alerta de vencimiento por fecha).
+        foto_obligatoria: i.dispara_novedad && i.tipo_respuesta !== 'fecha' && i.foto_obligatoria,
       }))
     )
     if (errItems) { setSaving(false); setError(errItems.message); return }
@@ -149,6 +153,13 @@ export default function PlantillaChecklistModal({ plantilla, empresaId, onClose,
                       placeholder="Descripción de la novedad (opcional)"
                       className="border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-xs" />
                   </div>
+                )}
+
+                {item.dispara_novedad && item.tipo_respuesta !== 'fecha' && (
+                  <label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 pl-5">
+                    <input type="checkbox" checked={item.foto_obligatoria} onChange={e => actualizarItem(idx, 'foto_obligatoria', e.target.checked)} />
+                    Foto obligatoria cuando la respuesta genera la novedad
+                  </label>
                 )}
 
                 {item.dispara_novedad && item.tipo_respuesta !== 'fecha' && (

@@ -3,6 +3,7 @@ import SignatureCanvas from 'react-signature-canvas'
 import { supabase } from '../lib/supabase'
 import { useOnline, encolarRpc } from '../lib/offline'
 import { enviarChecklistMail } from '../lib/enviarChecklistMail'
+import { comprimirFoto, blobADataUrl } from '../lib/fotos'
 import Modal from './Modal'
 import ConfirmModal from './ConfirmModal'
 import BuscadorUnidad from './BuscadorUnidad'
@@ -23,6 +24,7 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
   const [idPlantilla, setIdPlantilla] = useState('')
   const [respuestas, setRespuestas] = useState({})
   const [fotos, setFotos] = useState([])
+  const [fotosItem, setFotosItem] = useState({}) // id del ítem -> File (foto obligatoria de esa respuesta)
   const [km, setKm] = useState('')
   const [hs, setHs] = useState('')
   const [error, setError] = useState('')
@@ -40,7 +42,10 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
   const kmModo = plantillaSel?.km_modo ?? 'no'
   const hsModo = plantillaSel?.hs_modo ?? 'no'
 
-  function elegirPlantilla(id) { setIdPlantilla(id); setRespuestas({}) }
+  // Foto obligatoria: solo cuando la respuesta de un ítem configurado con "foto obligatoria" genera novedad.
+  const requiereFoto = item => item.foto_obligatoria && item.dispara_novedad && item.tipo_respuesta !== 'fecha'
+    && item.valor_disparador && respuestas[item.id]?.trim().toLowerCase() === item.valor_disparador.trim().toLowerCase()
+  function elegirPlantilla(id) { setIdPlantilla(id); setRespuestas({}); setFotosItem({}) }
   function setRespuesta(idItem, valor) { setRespuestas(r => ({ ...r, [idItem]: valor })) }
 
   function handleSubmit(e) {
@@ -52,6 +57,13 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
       setIntentoSubmit(true)
       setError('Faltan responder ' + faltantes.length + ' ítem(s) — marcados en rojo')
       refsItems.current[faltantes[0].id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    const sinFoto = items.filter(i => requiereFoto(i) && !fotosItem[i.id])
+    if (sinFoto.length > 0) {
+      setIntentoSubmit(true)
+      setError('Falta la foto obligatoria en ' + sinFoto.length + ' respuesta(s) que generan novedad — marcadas en rojo')
+      refsItems.current[sinFoto[0].id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
     if (kmModo === 'obligatorio' && km === '') { setError('El km es obligatorio en este checklist'); return }
@@ -69,10 +81,28 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
 
   async function guardar() {
     const ubicacion_url = await capturarUbicacion()
+    // Foto de cada respuesta que la exige: online se sube a Storage; sin conexión
+    // viaja comprimida en la cola (foto_dataurl) y se sube al sincronizar.
+    const respuestasArmadas = []
+    for (const i of items) {
+      const r = { id_item: i.id, respuesta: respuestas[i.id] }
+      if (requiereFoto(i) && fotosItem[i.id]) {
+        if (online) {
+          const blob = await comprimirFoto(fotosItem[i.id], 1280, 0.8)
+          const path = `${empresaId}/checklists/${crypto.randomUUID()}.jpg`
+          const { error: upErr } = await supabase.storage.from('ot-fotos').upload(path, blob, { contentType: 'image/jpeg' })
+          if (upErr) throw upErr
+          r.foto_url = supabase.storage.from('ot-fotos').getPublicUrl(path).data.publicUrl
+        } else {
+          r.foto_dataurl = await blobADataUrl(await comprimirFoto(fotosItem[i.id], 800, 0.6))
+        }
+      }
+      respuestasArmadas.push(r)
+    }
     const args = {
       p_id_plantilla: idPlantilla,
       p_id_unidad: idUnidad,
-      p_respuestas: items.map(i => ({ id_item: i.id, respuesta: respuestas[i.id] })),
+      p_respuestas: respuestasArmadas,
       p_ubicacion_url: ubicacion_url,
       p_firma_url: null,
       p_fotos_urls: null,
@@ -81,7 +111,11 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
     }
 
     if (!online) {
-      encolarRpc('ejecutar_checklist', args, `Checklist: ${unidadSeleccionada?.descripcion ?? ''}`)
+      try {
+        encolarRpc('ejecutar_checklist', args, `Checklist: ${unidadSeleccionada?.descripcion ?? ''}`, { empresaId })
+      } catch {
+        throw new Error('No hay espacio para guardar el checklist sin conexión. Probá con menos fotos o esperá a tener señal.')
+      }
       onSaved(null)
       return
     }
@@ -159,6 +193,15 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
                 <p className={`text-sm mb-1 ${falta ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
                   {item.pregunta} {falta && <span className="text-xs">— falta responder</span>}
                 </p>
+                {requiereFoto(item) && (
+                  <div className="mb-2">
+                    <label className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 cursor-pointer w-fit hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                      intentoSubmit && !fotosItem[item.id] ? 'border-red-400 text-red-600 dark:text-red-400' : fotosItem[item.id] ? 'border-green-300 text-green-700 dark:text-green-400' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}>
+                      📷 {fotosItem[item.id] ? fotosItem[item.id].name : 'Foto obligatoria (esta respuesta genera una novedad)'}
+                      <input type="file" accept="image/*" onChange={e => setFotosItem(f => ({ ...f, [item.id]: e.target.files[0] ?? null }))} className="hidden" />
+                    </label>
+                  </div>
+                )}
                 {item.tipo_respuesta === 'texto' ? (
                   <textarea value={respuestas[item.id] || ''} onChange={e => setRespuesta(item.id, e.target.value)}
                     className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" rows={2} />

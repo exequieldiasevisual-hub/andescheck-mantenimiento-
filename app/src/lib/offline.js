@@ -34,9 +34,9 @@ export function encolarNotaPedido(args, fotosDataUrl, descripcion, empresaId) {
   guardarCola(cola)
 }
 
-async function subirFotoDataUrl(supabase, dataUrl, empresaId) {
+async function subirFotoDataUrl(supabase, dataUrl, empresaId, carpeta = 'notas-pedido') {
   const blob = await (await fetch(dataUrl)).blob()
-  const path = `${empresaId}/notas-pedido/${crypto.randomUUID()}.jpg`
+  const path = `${empresaId}/${carpeta}/${crypto.randomUUID()}.jpg`
   const { error } = await supabase.storage.from('ot-fotos').upload(path, blob, { contentType: 'image/jpeg' })
   if (error) throw error
   return supabase.storage.from('ot-fotos').getPublicUrl(path).data.publicUrl
@@ -54,9 +54,11 @@ export function encolar(tabla, payload, descripcion) {
 // Igual que encolar, pero para acciones que no son un insert directo sino
 // una función RPC con lógica propia (ej. ejecutar_checklist genera
 // novedades automáticas, crear_carga_combustible actualiza la unidad).
-export function encolarRpc(funcion, args, descripcion) {
+// extra: datos propios de la operación que no van al RPC (ej. empresaId para
+// subir las fotos guardadas como dataURL en args.p_respuestas[].foto_dataurl).
+export function encolarRpc(funcion, args, descripcion, extra = {}) {
   const cola = obtenerCola()
-  cola.push({ id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, modo: 'rpc', funcion, args, descripcion, fecha: new Date().toISOString() })
+  cola.push({ id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, modo: 'rpc', funcion, args, descripcion, fecha: new Date().toISOString(), ...extra })
   guardarCola(cola)
 }
 
@@ -92,7 +94,18 @@ export async function sincronizarCola(supabase) {
         error = errRpc || (data && data.ok === false ? new Error(data.msg || 'No se pudo sincronizar') : null)
       } catch (err) { error = err }
     } else if (op.modo === 'rpc') {
-      const { data, error: errRpc } = await supabase.rpc(op.funcion, op.args)
+      let args = op.args
+      try {
+        // Fotos de respuestas de checklist guardadas offline: se suben ahora y se reemplazan por su URL.
+        if (op.funcion === 'ejecutar_checklist' && args.p_respuestas?.some(r => r.foto_dataurl)) {
+          const respuestas = []
+          for (const { foto_dataurl, ...r } of args.p_respuestas) {
+            respuestas.push(foto_dataurl ? { ...r, foto_url: await subirFotoDataUrl(supabase, foto_dataurl, op.empresaId, 'checklists') } : r)
+          }
+          args = { ...args, p_respuestas: respuestas }
+        }
+      } catch { restantes.push(op); continue }
+      const { data, error: errRpc } = await supabase.rpc(op.funcion, args)
       error = errRpc || (data && data.ok === false ? new Error(data.msg || 'No se pudo sincronizar') : null)
       if (!error && op.funcion === 'ejecutar_checklist' && data?.id_ejecucion) {
         enviarChecklistMail(supabase, data.id_ejecucion)
