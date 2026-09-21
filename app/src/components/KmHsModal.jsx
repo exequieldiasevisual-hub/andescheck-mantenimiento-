@@ -4,15 +4,31 @@ import Modal from './Modal'
 
 // Reemplaza los prompt() nativos para actualizar km/hs de una unidad,
 // con validación de regresivos y última medición visible.
-export default function KmHsModal({ unidad, onClose, onSaved }) {
+export default function KmHsModal({ unidad, puedeCorregir = false, onClose, onSaved }) {
   const [km, setKm] = useState('')
   const [hs, setHs] = useState('')
+  // Solo el administrador: permite bajar el valor (ej. un km cargado de más) con motivo obligatorio.
+  const [corregir, setCorregir] = useState(false)
+  const [motivo, setMotivo] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (km === '' && hs === '') { setError('Cargá al menos un valor'); return }
+    if (corregir) {
+      if (!motivo.trim()) { setError('Falta el motivo de la corrección'); return }
+      setSaving(true)
+      setError('')
+      const { data, error: err } = await supabase.rpc('corregir_km_hs', {
+        p_id_unidad: unidad.id, p_km: km === '' ? null : Number(km), p_hs: hs === '' ? null : Number(hs), p_motivo: motivo.trim(),
+      })
+      setSaving(false)
+      if (err) { setError(err.message); return }
+      if (!data?.ok) { setError(data?.msg ?? 'No se pudo corregir'); return }
+      onSaved()
+      return
+    }
     if (km !== '' && unidad.km_actuales != null && Number(km) < Number(unidad.km_actuales)) {
       setError(`El km ingresado (${km}) no puede ser menor al último registrado (${unidad.km_actuales})`); return
     }
@@ -49,6 +65,19 @@ export default function KmHsModal({ unidad, onClose, onSaved }) {
               className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
           </div>
         </div>
+
+        {puedeCorregir && (
+          <div className="space-y-2">
+            <label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+              <input type="checkbox" checked={corregir} onChange={e => setCorregir(e.target.checked)} />
+              Es una corrección (permite un valor menor al registrado)
+            </label>
+            {corregir && (
+              <input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo de la corrección *"
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
+            )}
+          </div>
+        )}
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 

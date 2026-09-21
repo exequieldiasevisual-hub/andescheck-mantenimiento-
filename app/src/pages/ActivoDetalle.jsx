@@ -1001,6 +1001,7 @@ export default function ActivoDetalle({ idUnidad, usuario, volver, abrirOt, nave
       {kmHsAbierto && (
         <KmHsModal
           unidad={{ id: idUnidad, descripcion: unidad.descripcion, km_actuales: unidad.km_actuales, hs_actuales: unidad.hs_actuales }}
+          puedeCorregir={usuario?.rol === 'administrador'}
           onClose={() => setKmHsAbierto(false)}
           onSaved={() => { setKmHsAbierto(false); cargar() }}
         />

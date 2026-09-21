@@ -46,6 +46,7 @@ function HistorialKmHsModal({ unidad, onClose }) {
               {h.km_actuales != null && h.hs_actuales != null && ' · '}
               {h.hs_actuales != null && <span>{h.hs_actuales} hs</span>}
               <span className="text-xs text-gray-400"> ({h.usuarios?.nombre ?? '—'})</span>
+              {h.motivo && <span className="block text-xs text-amber-600 dark:text-amber-400">{h.motivo}</span>}
             </li>
           ))}
         </ul>
@@ -628,6 +629,7 @@ export default function Unidades({ usuario, abrirFicha, filtroSaludInicial }) {
       {kmHsAbierto && (
         <KmHsModal
           unidad={kmHsAbierto}
+          puedeCorregir={usuario?.rol === 'administrador'}
           onClose={() => setKmHsAbierto(null)}
           onSaved={() => { setKmHsAbierto(null); cargar() }}
         />
