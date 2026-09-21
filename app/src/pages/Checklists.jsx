@@ -170,8 +170,8 @@ function EjecutarEHistorial({ usuario, unidadInicial }) {
   async function cargar() {
     setLoading(true)
     const [{ data: unidadesData }, { data: plantillasData }, { data: itemsData }, { data: ejecucionesData }] = await Promise.all([
-      supabase.from('unidades').select('id, descripcion, patente_serie, tipo').eq('activo', true).order('descripcion'),
-      supabase.from('checklist_plantillas').select('id, nombre, tipo_unidad').eq('activo', true).order('nombre'),
+      supabase.from('unidades').select('id, descripcion, patente_serie, tipo, km_actuales, hs_actuales').eq('activo', true).order('descripcion'),
+      supabase.from('checklist_plantillas').select('id, nombre, tipo_unidad, km_modo, hs_modo').eq('activo', true).order('nombre'),
       // Se traen los ítems de todas las plantillas de una — así el modal de
       // ejecución no depende de una consulta nueva al elegir la plantilla,
       // y se puede completar un checklist aunque se haya perdido la señal.

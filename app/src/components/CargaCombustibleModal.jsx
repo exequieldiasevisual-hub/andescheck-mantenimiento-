@@ -25,6 +25,12 @@ export default function CargaCombustibleModal({ unidades, usuario, onClose, onSa
     if (!form.id_unidad) { setError('La unidad es obligatoria'); return }
     if (!form.litros || Number(form.litros) <= 0) { setError('Los litros deben ser mayores a cero'); return }
     if (form.origen === 'Estación externa' && !form.estacion.trim()) { setError('Indicá el nombre de la estación'); return }
+    if (form.km_actuales !== '' && unidadSeleccionada?.km_actuales != null && Number(form.km_actuales) < Number(unidadSeleccionada.km_actuales)) {
+      setError(`El km ingresado (${form.km_actuales}) no puede ser menor al último registrado (${unidadSeleccionada.km_actuales})`); return
+    }
+    if (form.hs_actuales !== '' && unidadSeleccionada?.hs_actuales != null && Number(form.hs_actuales) < Number(unidadSeleccionada.hs_actuales)) {
+      setError(`Las hs ingresadas (${form.hs_actuales}) no pueden ser menores a las últimas registradas (${unidadSeleccionada.hs_actuales})`); return
+    }
     setSaving(true)
     setError('')
 

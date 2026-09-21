@@ -23,6 +23,8 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
   const [idPlantilla, setIdPlantilla] = useState('')
   const [respuestas, setRespuestas] = useState({})
   const [fotos, setFotos] = useState([])
+  const [km, setKm] = useState('')
+  const [hs, setHs] = useState('')
   const [error, setError] = useState('')
   const [confirmando, setConfirmando] = useState(false)
   const [intentoSubmit, setIntentoSubmit] = useState(false)
@@ -33,6 +35,10 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
   const unidadSeleccionada = unidades.find(u => u.id === idUnidad)
   const plantillasDisponibles = plantillas.filter(p => !p.tipo_unidad || !unidadSeleccionada || p.tipo_unidad === unidadSeleccionada.tipo)
   const items = itemsPorPlantilla[idPlantilla] || []
+  // La plantilla define si pide km / hs y si son obligatorios ('no' | 'opcional' | 'obligatorio').
+  const plantillaSel = plantillas.find(p => p.id === idPlantilla)
+  const kmModo = plantillaSel?.km_modo ?? 'no'
+  const hsModo = plantillaSel?.hs_modo ?? 'no'
 
   function elegirPlantilla(id) { setIdPlantilla(id); setRespuestas({}) }
   function setRespuesta(idItem, valor) { setRespuestas(r => ({ ...r, [idItem]: valor })) }
@@ -48,6 +54,14 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
       refsItems.current[faltantes[0].id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
+    if (kmModo === 'obligatorio' && km === '') { setError('El km es obligatorio en este checklist'); return }
+    if (hsModo === 'obligatorio' && hs === '') { setError('Las hs son obligatorias en este checklist'); return }
+    if (kmModo !== 'no' && km !== '' && unidadSeleccionada?.km_actuales != null && Number(km) < Number(unidadSeleccionada.km_actuales)) {
+      setError(`El km ingresado (${km}) no puede ser menor al último registrado (${unidadSeleccionada.km_actuales})`); return
+    }
+    if (hsModo !== 'no' && hs !== '' && unidadSeleccionada?.hs_actuales != null && Number(hs) < Number(unidadSeleccionada.hs_actuales)) {
+      setError(`Las hs ingresadas (${hs}) no pueden ser menores a las últimas registradas (${unidadSeleccionada.hs_actuales})`); return
+    }
     if (padRef.current.isEmpty()) { setError('Falta la firma de quien completa el checklist'); return }
     setError('')
     setConfirmando(true)
@@ -62,6 +76,8 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
       p_ubicacion_url: ubicacion_url,
       p_firma_url: null,
       p_fotos_urls: null,
+      p_km: kmModo !== 'no' && km !== '' ? Number(km) : null,
+      p_hs: hsModo !== 'no' && hs !== '' ? Number(hs) : null,
     }
 
     if (!online) {
@@ -110,6 +126,29 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
             {plantillasDisponibles.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
           </select>
         </div>
+
+        {(kmModo !== 'no' || hsModo !== 'no') && (
+          <div className="grid grid-cols-2 gap-3">
+            {kmModo !== 'no' && (
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Km actuales{kmModo === 'obligatorio' ? ' *' : ''} {unidadSeleccionada?.km_actuales != null && <span className="text-gray-400">(último: {unidadSeleccionada.km_actuales})</span>}
+                </label>
+                <input type="number" min="0" value={km} onChange={e => setKm(e.target.value)}
+                  className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
+              </div>
+            )}
+            {hsModo !== 'no' && (
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Hs actuales{hsModo === 'obligatorio' ? ' *' : ''} {unidadSeleccionada?.hs_actuales != null && <span className="text-gray-400">(última: {unidadSeleccionada.hs_actuales})</span>}
+                </label>
+                <input type="number" min="0" value={hs} onChange={e => setHs(e.target.value)}
+                  className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
+              </div>
+            )}
+          </div>
+        )}
 
         {items.length > 0 && (
           <div className="space-y-3 border-t border-gray-100 dark:border-gray-800 pt-3">

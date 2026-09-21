@@ -19,6 +19,8 @@ export default function PlantillaChecklistModal({ plantilla, empresaId, onClose,
   const [nombre, setNombre] = useState(plantilla?.nombre || '')
   const [descripcion, setDescripcion] = useState(plantilla?.descripcion || '')
   const [tipoUnidad, setTipoUnidad] = useState(plantilla?.tipo_unidad || '')
+  const [kmModo, setKmModo] = useState(plantilla?.km_modo || 'no')
+  const [hsModo, setHsModo] = useState(plantilla?.hs_modo || 'no')
   const [items, setItems] = useState([])
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -53,7 +55,7 @@ export default function PlantillaChecklistModal({ plantilla, empresaId, onClose,
     setSaving(true)
     setError('')
 
-    const payload = { empresa_id: empresaId, nombre: nombre.trim(), descripcion: descripcion.trim() || null, tipo_unidad: tipoUnidad || null }
+    const payload = { empresa_id: empresaId, nombre: nombre.trim(), descripcion: descripcion.trim() || null, tipo_unidad: tipoUnidad || null, km_modo: kmModo, hs_modo: hsModo }
     const { data: plant, error: errPlant } = plantilla?.id
       ? await supabase.from('checklist_plantillas').update(payload).eq('id', plantilla.id).select().single()
       : await supabase.from('checklist_plantillas').insert(payload).select().single()
@@ -92,6 +94,20 @@ export default function PlantillaChecklistModal({ plantilla, empresaId, onClose,
           <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Descripción</label>
           <input value={descripcion} onChange={e => setDescripcion(e.target.value)}
             className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {[['Km de la unidad', kmModo, setKmModo], ['Hs de la unidad', hsModo, setHsModo]].map(([label, valor, setValor]) => (
+            <div key={label}>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+              <select value={valor} onChange={e => setValor(e.target.value)}
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm">
+                <option value="no">No se pide</option>
+                <option value="opcional">Se pide (opcional)</option>
+                <option value="obligatorio">Se pide (obligatorio)</option>
+              </select>
+            </div>
+          ))}
         </div>
 
         <div>
