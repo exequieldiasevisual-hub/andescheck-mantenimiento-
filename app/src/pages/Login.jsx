@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { resolverAlias, login, getAliasGuardado } from '../lib/auth'
 import logoAndesCheck from '../assets/andescheck-logo.svg'
+import fondoLogin from '../assets/login-fondo.jpg'
 
 export default function Login({ onLogin }) {
   const [paso, setPaso] = useState('alias')
@@ -39,8 +40,11 @@ export default function Login({ onLogin }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 w-full max-w-sm">
+    <div
+      className="min-h-screen bg-gray-50 dark:bg-gray-900 bg-cover bg-center flex items-center justify-center p-4"
+      style={{ backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.35), rgba(15, 23, 42, 0.5)), url(${fondoLogin})` }}
+    >
+      <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl p-8 w-full max-w-sm">
         <div className="flex flex-col items-center text-center">
           <img src={logoAndesCheck} alt="AndesCheck Cloud Management" className="w-48 mb-4" width={192} height={106} />
           <h1 className="text-lg font-semibold text-blue-700 dark:text-blue-300">AndesCheck</h1>
