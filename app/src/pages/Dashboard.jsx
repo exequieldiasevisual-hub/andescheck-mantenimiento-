@@ -132,7 +132,9 @@ export default function Dashboard({ abrirOt, navegarA }) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {TARJETAS.map(t => (
-          <div key={t.key} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 relative">
+          <div key={t.key}
+            onClick={t.key === 'np_pendientes' ? () => navegarA('notas_pedido') : undefined}
+            className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 relative ${t.key === 'np_pendientes' ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700' : ''}`}>
             <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{valorTarjeta(t)}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.label}</p>
             {t.porcentaje && (
