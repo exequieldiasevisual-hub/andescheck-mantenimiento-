@@ -5,6 +5,8 @@ import { exportarXlsx } from '../lib/exportarXlsx'
 import MultiSelectFiltro from '../components/MultiSelectFiltro'
 import OtModal from '../components/OtModal'
 import MotivoModal from '../components/MotivoModal'
+import { EnviarMailModal, EnviarWhatsappModal } from '../components/OtEnvioModals'
+import { imprimirOt } from '../lib/imprimirOt'
 
 const ESTADOS_ABIERTOS = ['Abierta', 'En_Curso']
 const TIPOS_OT = ['Correctivo', 'Preventivo', 'Predictivo']
@@ -25,6 +27,33 @@ function OtCard({ ot, puedeGestionar, abrirDetalle, onAnular }) {
   const estado = ot.estado_calculado
   const colorBar = ot.listo_cierre ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-blue-500'
   const puedeVerProgreso = puedeGestionar && pct !== null
+  const [mailAbierto, setMailAbierto] = useState(false)
+  const [whatsappAbierto, setWhatsappAbierto] = useState(false)
+  const [error, setError] = useState('')
+  const [mensajeExito, setMensajeExito] = useState('')
+
+  async function imprimir() {
+    try {
+      await imprimirOt(supabase, ot.id)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function enviarMail(destinatario) {
+    const { data, error: err } = await supabase.rpc('enviar_ot_mail', { p_id_ot: ot.id, p_destinatario: destinatario })
+    if (err) throw err
+    if (!data?.ok) throw new Error(data.msg)
+    setMailAbierto(false)
+    setMensajeExito('Mail enviado')
+    setTimeout(() => setMensajeExito(''), 4000)
+  }
+
+  function enviarWhatsapp(soloDigitos) {
+    const texto = `Orden de trabajo ${ot.numero_ot}\nUnidad: ${ot.unidad_descripcion ?? ''} (${ot.unidad_patente ?? ''})\nEstado: ${ot.estado}\nDescripción: ${ot.descripcion ?? ''}`
+    window.open(`https://wa.me/${soloDigitos}?text=${encodeURIComponent(texto)}`, '_blank')
+    setWhatsappAbierto(false)
+  }
 
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-xl border-l-4 border border-gray-200 dark:border-gray-700 p-4 ${ot.listo_cierre ? 'border-l-emerald-500' : estado === 'Vencida' ? 'border-l-red-500' : 'border-l-blue-500'}`}>
@@ -40,6 +69,8 @@ function OtCard({ ot, puedeGestionar, abrirDetalle, onAnular }) {
       {ot.estado === 'Anulada' && ot.motivo_anulacion && (
         <p className="text-xs text-red-500 dark:text-red-400 mb-2">Motivo de anulación: {ot.motivo_anulacion}</p>
       )}
+      {error && <p className="text-xs text-red-600 dark:text-red-400 mb-2">{error}</p>}
+      {mensajeExito && <p className="text-xs text-green-600 dark:text-green-400 mb-2">{mensajeExito}</p>}
       {puedeVerProgreso && (
         <div className="mb-3">
           <div className="flex justify-between text-xs mb-1">
@@ -53,10 +84,20 @@ function OtCard({ ot, puedeGestionar, abrirDetalle, onAnular }) {
       )}
       <div className="flex gap-2">
         <button onClick={() => abrirDetalle(ot.id)} className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700">Ver detalle</button>
+        {puedeGestionar && (
+          <>
+            <button onClick={imprimir} title="Imprimir" className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700">🖨</button>
+            <button onClick={() => setMailAbierto(true)} title="Enviar por mail" className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700">✉</button>
+            <button onClick={() => setWhatsappAbierto(true)} title="Enviar por WhatsApp" className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700">📱</button>
+          </>
+        )}
         {puedeGestionar && ot.estado !== 'Anulada' && (
           <button onClick={() => onAnular(ot.id)} className="text-xs text-red-500 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700">Anular</button>
         )}
       </div>
+
+      {mailAbierto && <EnviarMailModal onClose={() => setMailAbierto(false)} onConfirm={enviarMail} />}
+      {whatsappAbierto && <EnviarWhatsappModal onClose={() => setWhatsappAbierto(false)} onConfirm={enviarWhatsapp} />}
     </div>
   )
 }
