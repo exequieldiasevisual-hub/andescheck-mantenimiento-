@@ -90,9 +90,9 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
     .filter(s => s.items.length > 0)
 
   useEffect(() => {
-    if (esTecnico) return
     supabase.from('unidades').select('id, descripcion, patente_serie').eq('activo', true).order('patente_serie')
       .then(({ data }) => setUnidades(data || []))
+    if (esTecnico) return
     supabase.from('configuracion').select('clave, valor').eq('seccion', 'parametros').in('clave', ['usar_secuencias', 'usar_bitacora'])
       .then(({ data }) => {
         setUsarSecuencias(data?.find(d => d.clave === 'usar_secuencias')?.valor === 'true')
@@ -105,10 +105,10 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
     setAbiertoMobile(false)
   }
 
-  // El chofer no tiene ficha de activos: al buscar o escanear una patente
-  // se le abre el checklist de esa unidad.
+  // El chofer y el técnico no tienen ficha de activos: al buscar o
+  // escanear una patente se les abre el checklist de esa unidad.
   function irAActivo(id) {
-    if (esChofer) setPagina('checklists', { unidad: id, abrirChecklist: true })
+    if (esChofer || esTecnico) setPagina('checklists', { unidad: id, abrirChecklist: true })
     else abrirActivo(id)
     setAbiertoMobile(false)
   }
@@ -147,27 +147,25 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
             <X size={18} />
           </button>
         </div>
-        {!esTecnico && (
-          <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center gap-1.5">
-            <div className="flex-1 min-w-0">
-              <BuscadorUnidad
-                unidades={unidades}
-                value={''}
-                onChange={irAActivo}
-                placeholder="🔍 Buscar patente…"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setEscanerAbierto(true)}
-              title="Buscar por patente con la cámara"
-              aria-label="Buscar por patente con la cámara"
-              className="shrink-0 p-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              <Camera size={16} />
-            </button>
+        <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center gap-1.5">
+          <div className="flex-1 min-w-0">
+            <BuscadorUnidad
+              unidades={unidades}
+              value={''}
+              onChange={irAActivo}
+              placeholder="🔍 Buscar patente…"
+            />
           </div>
-        )}
+          <button
+            type="button"
+            onClick={() => setEscanerAbierto(true)}
+            title="Buscar por patente con la cámara"
+            aria-label="Buscar por patente con la cámara"
+            className="shrink-0 p-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            <Camera size={16} />
+          </button>
+        </div>
 
         {escanerAbierto && (
           <EscanearPatenteModal
