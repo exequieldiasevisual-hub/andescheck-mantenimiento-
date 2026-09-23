@@ -5,6 +5,7 @@ import ConfirmModal from './ConfirmModal'
 
 const INPUT = 'w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm'
 const hoyISO = () => new Date().toLocaleDateString('sv-SE') // yyyy-mm-dd en huso horario local
+const nombreCompleto = u => [u?.nombre, u?.apellido].filter(Boolean).join(' ')
 const DIAS_SEMANA = [['1', 'L'], ['2', 'M'], ['3', 'X'], ['4', 'J'], ['5', 'V'], ['6', 'S'], ['7', 'D']]
 const DIAS_LABORALES_DEFECTO = '1,2,3,4,5'
 
@@ -162,7 +163,7 @@ export default function ReporteChoferes({ empresaId }) {
     setError('')
     const [{ data, error: err }, { data: francosData }] = await Promise.all([
       supabase.rpc('get_cumplimiento_checklist_diario', { p_fecha: fecha }),
-      supabase.from('choferes_franco').select('*, usuarios!choferes_franco_id_chofer_fkey(nombre)').gte('hasta', hoyISO()).order('desde'),
+      supabase.from('choferes_franco').select('*, usuarios!choferes_franco_id_chofer_fkey(nombre, apellido)').gte('hasta', hoyISO()).order('desde'),
     ])
     if (err) { setError(err.message); return }
     if (!data?.ok) { setError(data?.msg ?? 'No se pudo cargar el reporte'); return }
@@ -247,7 +248,7 @@ export default function ReporteChoferes({ empresaId }) {
             {francos.map(f => (
               <div key={f.id} className="flex items-center justify-between text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
                 <span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{f.usuarios?.nombre}</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{nombreCompleto(f.usuarios)}</span>
                   <span className="text-gray-500 dark:text-gray-400"> — {new Date(f.desde + 'T00:00:00').toLocaleDateString('es-AR')} al {new Date(f.hasta + 'T00:00:00').toLocaleDateString('es-AR')}</span>
                   {f.motivo && <span className="text-gray-400"> ({f.motivo})</span>}
                 </span>
@@ -265,7 +266,7 @@ export default function ReporteChoferes({ empresaId }) {
       {francoEliminar && (
         <ConfirmModal
           titulo="Quitar franco"
-          mensaje={`¿Quitar el franco de "${francoEliminar.usuarios?.nombre}"?`}
+          mensaje={`¿Quitar el franco de "${nombreCompleto(francoEliminar.usuarios)}"?`}
           textoBoton="Quitar"
           onConfirm={eliminarFranco}
           onClose={() => setFrancoEliminar(null)}
