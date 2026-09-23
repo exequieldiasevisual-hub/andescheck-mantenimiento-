@@ -568,7 +568,7 @@ export default function OtDetalle({ idOt, usuario, volver }) {
 
   async function agregarSeguimiento(e) {
     e.preventDefault()
-    if (!notaNueva.trim()) return
+    if (!notaNueva.trim()) { setError('La nota es obligatoria — también al adjuntar una foto o un PDF'); return }
     setError('')
 
     // Sin conexión no se puede subir foto/PDF a Storage — se encola solo
@@ -955,7 +955,7 @@ export default function OtDetalle({ idOt, usuario, volver }) {
               <input
                 value={notaNueva}
                 onChange={e => setNotaNueva(e.target.value)}
-                placeholder="Agregar nota…"
+                placeholder="Agregar nota… *"
                 className="flex-1 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
               />
               <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg whitespace-nowrap">Agregar</button>
