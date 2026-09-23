@@ -48,7 +48,12 @@ function Plantillas({ usuario }) {
             <tbody>
               {items.map(p => (
                 <tr key={p.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-5 py-3 text-gray-900 dark:text-gray-100 font-medium">{p.nombre}</td>
+                  <td className="px-5 py-3 text-gray-900 dark:text-gray-100 font-medium">
+                    {p.nombre}
+                    {p.es_diario_chofer && (
+                      <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Diario chofer</span>
+                    )}
+                  </td>
                   <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{p.tipo_unidad || 'Todas'}</td>
                   <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{p.checklist_items?.[0]?.count ?? 0}</td>
                   <td className="px-5 py-3 text-right whitespace-nowrap">

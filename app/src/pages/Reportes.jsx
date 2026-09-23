@@ -4,6 +4,7 @@ import { exportarXlsx } from '../lib/exportarXlsx'
 import { parseXlsx } from '../lib/importarXlsx'
 import MultiSelectFiltro from '../components/MultiSelectFiltro'
 import Modal from '../components/Modal'
+import ReporteChoferes from '../components/ReporteChoferes'
 
 function money(v) {
   return `$${Number(v || 0).toLocaleString('es-AR')}`
@@ -1113,6 +1114,7 @@ export default function Reportes() {
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
         <h1 className="text-base font-medium text-gray-900 dark:text-gray-100">Reportes</h1>
         <input
+          hidden={tab === 'choferes'}
           type="month"
           value={mes}
           onChange={e => setMes(e.target.value)}
@@ -1145,11 +1147,20 @@ export default function Reportes() {
         >
           Gestión OT
         </button>
+        <button
+          onClick={() => setTab('choferes')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === 'choferes' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+          }`}
+        >
+          Choferes
+        </button>
       </div>
 
       <div className="p-6">
         {tab === 'costos' && <ReporteCostos mes={mes} />}
         {tab === 'gestion_ot' && <GestionOt mes={mes} />}
+        {tab === 'choferes' && <ReporteChoferes />}
         {tab === 'tecnicos' && (
           <div className="space-y-6">
             <ReporteTecnicos mes={mes} />
