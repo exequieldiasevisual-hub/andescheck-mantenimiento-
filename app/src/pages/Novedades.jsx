@@ -250,7 +250,15 @@ export default function Novedades({ usuario, abrirOt, filtroUnidadInicial, filtr
                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
                       {[n.unidades?.patente_serie, n.unidades?.descripcion].filter(Boolean).join(' — ') || '—'}
                     </td>
-                    <td className="px-5 py-3 text-gray-900 dark:text-gray-100">{n.descripcion}</td>
+                    <td className="px-5 py-3 text-gray-900 dark:text-gray-100">
+                      {n.descripcion}
+                      {n.veces_reportada > 1 && (
+                        <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                          title={`Reportada ${n.veces_reportada} veces — última vez ${n.fecha_ultimo_reporte ? new Date(n.fecha_ultimo_reporte).toLocaleDateString() : '—'}`}>
+                          ×{n.veces_reportada}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{n.unidades?.centro_costo ?? '—'}</td>
                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{n.reportante?.nombre ?? '—'}</td>
                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
