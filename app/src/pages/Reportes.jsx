@@ -1105,9 +1105,9 @@ function GestionOt({ mes }) {
   )
 }
 
-export default function Reportes() {
+export default function Reportes({ tabInicial }) {
   const [mes, setMes] = useState(new Date().toISOString().slice(0, 7))
-  const [tab, setTab] = useState('costos')
+  const [tab, setTab] = useState(tabInicial || 'costos')
 
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">

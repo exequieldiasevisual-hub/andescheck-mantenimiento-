@@ -12,6 +12,7 @@ const TARJETAS = [
   { key: 'docs_vencidos', label: 'Documentos vencidos', porcentaje: true, destino: 'documentos', estado: 'Vencido' },
   { key: 'docs_por_vencer', label: 'Documentos por vencer', destino: 'documentos', estado: 'Por vencer' },
   { key: 'combustible_alertas', label: 'Alertas de combustible', destino: 'combustible' },
+  { key: 'checklists_faltan', label: 'Checklists diarios sin hacer', destino: 'reportes', tab: 'choferes' },
 ]
 
 const PUNTO_COLA = {
@@ -41,12 +42,15 @@ export default function Dashboard({ abrirOt, navegarA }) {
   const [filtroTipo, setFiltroTipo] = useState([])
   const [filtroCiudad, setFiltroCiudad] = useState([])
   const [npPendientes, setNpPendientes] = useState(0)
+  const [checklistsFaltan, setChecklistsFaltan] = useState(0)
 
   // No pasa por get_dashboard: cuenta directo las notas de pedido pendientes
   // (los filtros de centro/tipo/ciudad no aplican a esta tarjeta).
   useEffect(() => {
     supabase.from('notas_pedido').select('id', { count: 'exact', head: true }).eq('estado', 'Pendiente')
       .then(({ count }) => setNpPendientes(count ?? 0))
+    supabase.rpc('get_cumplimiento_checklist_diario', { p_fecha: new Date().toLocaleDateString('sv-SE') })
+      .then(({ data }) => setChecklistsFaltan(data?.ok ? data.choferes.filter(c => !c.en_franco && !c.cumplio).length : 0))
   }, [])
 
   useEffect(() => {
@@ -90,7 +94,7 @@ export default function Dashboard({ abrirOt, navegarA }) {
   }
 
   function valorTarjeta(t) {
-    const valor = t.key === 'np_pendientes' ? npPendientes : datos[t.key] ?? 0
+    const valor = t.key === 'np_pendientes' ? npPendientes : t.key === 'checklists_faltan' ? checklistsFaltan : datos[t.key] ?? 0
     if (!t.porcentaje || !modoPorcentaje[t.key]) return valor
     const total = datos[t.denominador || 'unidades_activas'] || 0
     return total > 0 ? `${Math.round((valor / total) * 100)}%` : '—'
@@ -133,9 +137,9 @@ export default function Dashboard({ abrirOt, navegarA }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {TARJETAS.map(t => (
           <div key={t.key}
-            onClick={t.destino ? () => navegarA(t.destino, { estado: t.estado }) : undefined}
+            onClick={t.destino ? () => navegarA(t.destino, { estado: t.estado, tab: t.tab }) : undefined}
             className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 relative ${t.destino ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700' : ''}`}>
-            <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{valorTarjeta(t)}</p>
+            <p className={`text-2xl font-semibold ${t.key === 'checklists_faltan' && checklistsFaltan > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>{valorTarjeta(t)}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.label}</p>
             {t.porcentaje && (
               <button

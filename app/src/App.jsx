@@ -59,6 +59,7 @@ export default function App() {
   const [filtroUnidadTextoInicial, setFiltroUnidadTextoInicial] = useState(null)
   const [escaneoNonce, setEscaneoNonce] = useState(0)
   const [filtroEstadoInicial, setFiltroEstadoInicial] = useState(null)
+  const [tabReportesInicial, setTabReportesInicial] = useState(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -107,7 +108,7 @@ export default function App() {
     if (paginaEfectiva === 'proveedores') return <Proveedores usuario={usuario} />
     if (paginaEfectiva === 'secuencias') return <Secuencias usuario={usuario} />
     if (paginaEfectiva === 'documentos') return <Documentos usuario={usuario} filtroUnidadInicial={filtroUnidadInicial} filtroEstadoInicial={filtroEstadoInicial} />
-    if (paginaEfectiva === 'reportes') return <Reportes />
+    if (paginaEfectiva === 'reportes') return <Reportes tabInicial={tabReportesInicial} />
     if (paginaEfectiva === 'configuracion') return <Configuracion usuario={usuario} />
     if (paginaEfectiva === 'usuarios') return <Usuarios usuario={usuario} />
     if (paginaEfectiva === 'ot') {
@@ -125,6 +126,7 @@ export default function App() {
     setFiltroUnidadInicial(opciones?.unidad ?? null)
     setFiltroUnidadTextoInicial(opciones?.unidadTexto ?? null)
     setFiltroEstadoInicial(opciones?.estado ?? null)
+    setTabReportesInicial(opciones?.tab ?? null)
     // Cada escaneo remonta Checklists aunque ya se esté en esa página.
     if (opciones?.abrirChecklist) setEscaneoNonce(n => n + 1)
     setPagina(p)
