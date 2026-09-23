@@ -58,7 +58,7 @@ const SECCIONES = [
 
 // El técnico solo trabaja sus OT, carga novedades y consulta herramientas —
 // nada de maestros ni métricas generales de la empresa.
-export const PAGINAS_TECNICO = ['ot', 'novedades', 'herramientas', 'notas_pedido']
+export const PAGINAS_TECNICO = ['ot', 'novedades', 'herramientas', 'notas_pedido', 'checklists']
 // El chofer solo carga gastos y rinde sus propios viajes en la Bitácora,
 // pide material con notas de pedido y hace el checklist de su unidad.
 export const PAGINAS_CHOFER = ['bitacora', 'notas_pedido', 'checklists']
