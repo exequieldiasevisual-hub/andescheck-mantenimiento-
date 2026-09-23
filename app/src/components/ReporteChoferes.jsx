@@ -5,6 +5,41 @@ import ConfirmModal from './ConfirmModal'
 
 const INPUT = 'w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm'
 const hoyISO = () => new Date().toLocaleDateString('sv-SE') // yyyy-mm-dd en huso horario local
+const DIAS_SEMANA = [['1', 'L'], ['2', 'M'], ['3', 'X'], ['4', 'J'], ['5', 'V'], ['6', 'S'], ['7', 'D']]
+const DIAS_LABORALES_DEFECTO = '1,2,3,4,5'
+
+function DiasLaboralesSelector({ empresaId }) {
+  const [dias, setDias] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    supabase.from('configuracion').select('valor').eq('seccion', 'parametros').eq('clave', 'checklist_dias_laborales').maybeSingle()
+      .then(({ data }) => setDias((data?.valor || DIAS_LABORALES_DEFECTO).split(',').filter(Boolean)))
+  }, [])
+
+  async function alternar(dia) {
+    const nuevos = dias.includes(dia) ? dias.filter(d => d !== dia) : [...dias, dia]
+    setDias(nuevos)
+    setSaving(true)
+    await supabase.from('configuracion').upsert({ empresa_id: empresaId, seccion: 'parametros', clave: 'checklist_dias_laborales', valor: nuevos.join(',') })
+    setSaving(false)
+  }
+
+  if (!dias) return null
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span className="text-xs text-gray-500 dark:text-gray-400">Días laborales de los choferes:</span>
+      {DIAS_SEMANA.map(([valor, letra]) => (
+        <button key={valor} type="button" disabled={saving} onClick={() => alternar(valor)}
+          className={`w-7 h-7 text-xs rounded-full transition-colors ${
+            dias.includes(valor) ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+          }`}>
+          {letra}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 function FrancoModal({ choferes, onClose, onSaved }) {
   const [idChofer, setIdChofer] = useState('')
@@ -94,7 +129,9 @@ function HistorialModal({ chofer, onClose }) {
           {dias?.map(d => (
             <li key={d.fecha} className="flex items-center justify-between text-sm border-t border-gray-100 dark:border-gray-800 pt-1.5 first:border-t-0 first:pt-0">
               <span className="text-gray-600 dark:text-gray-400">{new Date(d.fecha + 'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-              {d.en_franco ? (
+              {d.no_laborable ? (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">Fin de semana</span>
+              ) : d.en_franco ? (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">Franco</span>
               ) : d.cumplio ? (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
@@ -111,9 +148,10 @@ function HistorialModal({ chofer, onClose }) {
   )
 }
 
-export default function ReporteChoferes() {
+export default function ReporteChoferes({ empresaId }) {
   const [fecha, setFecha] = useState(hoyISO())
   const [choferes, setChoferes] = useState(null)
+  const [diaLaborable, setDiaLaborable] = useState(true)
   const [francos, setFrancos] = useState([])
   const [error, setError] = useState('')
   const [francoAbierto, setFrancoAbierto] = useState(false)
@@ -129,6 +167,7 @@ export default function ReporteChoferes() {
     if (err) { setError(err.message); return }
     if (!data?.ok) { setError(data?.msg ?? 'No se pudo cargar el reporte'); return }
     setChoferes(data.choferes)
+    setDiaLaborable(data.dia_laborable)
     setFrancos(francosData || [])
   }
 
@@ -159,10 +198,14 @@ export default function ReporteChoferes() {
         </button>
       </div>
 
+      <DiasLaboralesSelector empresaId={empresaId} />
+
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       {!choferes ? (
         <p className="text-sm text-gray-400 text-center py-8">Cargando…</p>
+      ) : !diaLaborable ? (
+        <p className="text-sm text-gray-400 text-center py-8">Los choferes no trabajan este día — no se pide checklist</p>
       ) : activos.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-8">No hay choferes activos cargados</p>
       ) : (

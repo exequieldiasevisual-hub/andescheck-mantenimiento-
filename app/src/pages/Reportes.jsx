@@ -1105,7 +1105,7 @@ function GestionOt({ mes }) {
   )
 }
 
-export default function Reportes({ tabInicial }) {
+export default function Reportes({ usuario, tabInicial }) {
   const [mes, setMes] = useState(new Date().toISOString().slice(0, 7))
   const [tab, setTab] = useState(tabInicial || 'costos')
 
@@ -1160,7 +1160,7 @@ export default function Reportes({ tabInicial }) {
       <div className="p-6">
         {tab === 'costos' && <ReporteCostos mes={mes} />}
         {tab === 'gestion_ot' && <GestionOt mes={mes} />}
-        {tab === 'choferes' && <ReporteChoferes />}
+        {tab === 'choferes' && <ReporteChoferes empresaId={usuario?.empresa_id} />}
         {tab === 'tecnicos' && (
           <div className="space-y-6">
             <ReporteTecnicos mes={mes} />

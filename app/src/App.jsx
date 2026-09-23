@@ -108,7 +108,7 @@ export default function App() {
     if (paginaEfectiva === 'proveedores') return <Proveedores usuario={usuario} />
     if (paginaEfectiva === 'secuencias') return <Secuencias usuario={usuario} />
     if (paginaEfectiva === 'documentos') return <Documentos usuario={usuario} filtroUnidadInicial={filtroUnidadInicial} filtroEstadoInicial={filtroEstadoInicial} />
-    if (paginaEfectiva === 'reportes') return <Reportes tabInicial={tabReportesInicial} />
+    if (paginaEfectiva === 'reportes') return <Reportes usuario={usuario} tabInicial={tabReportesInicial} />
     if (paginaEfectiva === 'configuracion') return <Configuracion usuario={usuario} />
     if (paginaEfectiva === 'usuarios') return <Usuarios usuario={usuario} />
     if (paginaEfectiva === 'ot') {
