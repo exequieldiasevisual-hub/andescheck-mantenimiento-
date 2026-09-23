@@ -85,14 +85,17 @@ export default function Ot({ usuario, abrirDetalle, filtroUnidadInicial }) {
 
   const puedeGestionar = ['administrador', 'supervisor'].includes(usuario?.rol)
   const esTecnico = usuario?.rol === 'tecnico'
+  // El chofer con OT habilitada (usar_ot_chofer) ve sus tareas igual que el técnico.
+  const soloSusOt = esTecnico || usuario?.rol === 'chofer'
 
   async function cargar() {
     setLoading(true)
     // ot_lista trae progreso de tareas + estado calculado (Vencida) + datos de unidad
     let query = supabase.from('ot_lista').select('*').order('fecha_apertura', { ascending: false })
-    if (esTecnico) {
-      // El técnico ve una OT si está asignado a nivel de OT completa, o si
-      // tiene al menos una tarea puntual asignada dentro de esa OT.
+    if (soloSusOt) {
+      // El técnico (o el chofer, si tiene OT habilitada) ve una OT si está
+      // asignado a nivel de OT completa, o si tiene al menos una tarea
+      // puntual asignada dentro de esa OT.
       const { data: tareasAsignadas } = await supabase.from('ot_tareas').select('id_ot').contains('tecnicos_asignados', [usuario.id])
       const idsPorTarea = [...new Set((tareasAsignadas || []).map(t => t.id_ot))]
       query = query.or([`tecnicos_asignados.cs.{${usuario.id}}`, idsPorTarea.length > 0 ? `id.in.(${idsPorTarea.join(',')})` : null].filter(Boolean).join(','))
@@ -149,9 +152,10 @@ export default function Ot({ usuario, abrirDetalle, filtroUnidadInicial }) {
     .filter(o => filtroCentroCosto.length === 0 || filtroCentroCosto.includes(o.unidad_centro_costo))
     .filter(o => filtroTipoUnidad.length === 0 || filtroTipoUnidad.includes(o.unidad_tipo))
     .filter(o => filtroCiudad.length === 0 || filtroCiudad.includes(o.unidad_ciudad))
-    // Para el técnico, las "en curso" van siempre arriba — el resto sigue
-    // en orden cronológico (más recientes primero, ya viene así de la query).
-    .sort((a, b) => esTecnico ? (b.estado === 'En_Curso') - (a.estado === 'En_Curso') : 0)
+    // Para quien trabaja tareas (técnico o chofer), las "en curso" van
+    // siempre arriba — el resto sigue en orden cronológico (más recientes
+    // primero, ya viene así de la query).
+    .sort((a, b) => soloSusOt ? (b.estado === 'En_Curso') - (a.estado === 'En_Curso') : 0)
 
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">

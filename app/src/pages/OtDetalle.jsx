@@ -511,13 +511,15 @@ export default function OtDetalle({ idOt, usuario, volver }) {
   const totalCostos = costos.reduce((s, c) => s + Number(c.monto || 0), 0)
 
   const puedeGestionar = ['administrador', 'supervisor'].includes(usuario?.rol)
-  // El técnico trabaja las tareas de una OT en la que esté asignado, ya sea
+  // El técnico (o el chofer, si la empresa tiene "OT para choferes"
+  // activado) trabaja las tareas de una OT en la que esté asignado, ya sea
   // a nivel de OT completa (ot.tecnicos_asignados) o a esa tarea puntual
   // (tarea.tecnicos_asignados).
-  const esTecnicoDeLaOt = usuario?.rol === 'tecnico' && ot?.tecnicos_asignados?.includes(usuario.id)
+  const trabajaTareas = ['tecnico', 'chofer'].includes(usuario?.rol)
+  const esTecnicoDeLaOt = trabajaTareas && ot?.tecnicos_asignados?.includes(usuario.id)
   function puedeMarcarTarea(t) {
     if (puedeGestionar) return true
-    return esTecnicoDeLaOt || (usuario?.rol === 'tecnico' && t.tecnicos_asignados?.includes(usuario.id))
+    return esTecnicoDeLaOt || (trabajaTareas && t.tecnicos_asignados?.includes(usuario.id))
   }
   const checklist = ot?.checklist_completado ?? []
   const checklistPendiente = checklist.some(i => i.requerido && !i.checked)

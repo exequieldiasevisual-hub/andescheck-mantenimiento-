@@ -69,6 +69,7 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
   const [seccionesManual, setSeccionesManual] = useState({})
   const [usarSecuencias, setUsarSecuencias] = useState(false)
   const [usarBitacora, setUsarBitacora] = useState(false)
+  const [usarOtChofer, setUsarOtChofer] = useState(false)
   const [abiertoMobile, setAbiertoMobile] = useState(false)
   const [escanerAbierto, setEscanerAbierto] = useState(false)
   const esTecnico = usuario?.rol === 'tecnico'
@@ -82,7 +83,7 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
       ...s,
       items: s.items
         .filter(i => !esTecnico || PAGINAS_TECNICO.includes(i.key))
-        .filter(i => !esChofer || PAGINAS_CHOFER.includes(i.key))
+        .filter(i => !esChofer || PAGINAS_CHOFER.includes(i.key) || (i.key === 'ot' && usarOtChofer))
         .filter(i => esSuperAdmin || i.key !== 'empresas')
         .filter(i => i.key !== 'secuencias' || usarSecuencias)
         .filter(i => i.key !== 'bitacora' || usarBitacora),
@@ -93,10 +94,11 @@ export default function Sidebar({ pagina, setPagina, usuario, abrirActivo }) {
     supabase.from('unidades').select('id, descripcion, patente_serie').eq('activo', true).order('patente_serie')
       .then(({ data }) => setUnidades(data || []))
     if (esTecnico) return
-    supabase.from('configuracion').select('clave, valor').eq('seccion', 'parametros').in('clave', ['usar_secuencias', 'usar_bitacora'])
+    supabase.from('configuracion').select('clave, valor').eq('seccion', 'parametros').in('clave', ['usar_secuencias', 'usar_bitacora', 'usar_ot_chofer'])
       .then(({ data }) => {
         setUsarSecuencias(data?.find(d => d.clave === 'usar_secuencias')?.valor === 'true')
         setUsarBitacora(data?.find(d => d.clave === 'usar_bitacora')?.valor === 'true')
+        setUsarOtChofer(data?.find(d => d.clave === 'usar_ot_chofer')?.valor === 'true')
       })
   }, [esTecnico, esChofer])
 
