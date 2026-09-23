@@ -125,8 +125,10 @@ async function leerPatenteGemini(imagenDataUrl) {
 
 // Foto entera (achicada para no mandar varios MB), sin recorte — a
 // diferencia de Tesseract, un modelo de visión encuentra la patente solo
-// en la escena completa (auto, fondo y todo).
-const ANCHO_FOTO_COMPLETA = 1280
+// en la escena completa (auto, fondo y todo). Un ancho/calidad más chicos
+// aceleran mucho la subida desde el celu (datos móviles) sin que la
+// patente deje de leerse.
+const ANCHO_FOTO_COMPLETA = 960
 
 function fotoCompletaAColor(img) {
   const escala = Math.min(1, ANCHO_FOTO_COMPLETA / img.naturalWidth)
@@ -134,7 +136,7 @@ function fotoCompletaAColor(img) {
   canvas.width = img.naturalWidth * escala
   canvas.height = img.naturalHeight * escala
   canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
-  return canvas.toDataURL('image/jpeg', 0.9)
+  return canvas.toDataURL('image/jpeg', 0.75)
 }
 
 export default function EscanearPatenteModal({ unidades, onClose, onAbrirFicha }) {
