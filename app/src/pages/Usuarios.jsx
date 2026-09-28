@@ -10,6 +10,7 @@ function UsuarioModal({ onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
 
   function setField(k, v) { setForm(f => ({ ...f, [k]: v })) }
+  function setFieldMayus(k, v) { setField(k, v.toUpperCase()) }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -35,12 +36,12 @@ function UsuarioModal({ onClose, onSaved }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Nombre *</label>
-            <input value={form.nombre} onChange={e => setField('nombre', e.target.value)}
+            <input value={form.nombre} onChange={e => setFieldMayus('nombre', e.target.value)}
               className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" required />
           </div>
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Apellido</label>
-            <input value={form.apellido} onChange={e => setField('apellido', e.target.value)}
+            <input value={form.apellido} onChange={e => setFieldMayus('apellido', e.target.value)}
               className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
           </div>
         </div>
@@ -165,6 +166,88 @@ function PerfilTecnicoModal({ tecnico, onClose, onSaved }) {
   )
 }
 
+function EditarUsuarioModal({ usuario, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    nombre: usuario.nombre || '', apellido: usuario.apellido || '', email: usuario.email || '',
+    dni: usuario.dni || '', puesto: usuario.puesto || '', rol: usuario.rol,
+  })
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  function setField(k, v) { setForm(f => ({ ...f, [k]: v })) }
+  function setFieldMayus(k, v) { setField(k, v.toUpperCase()) }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!form.nombre.trim()) { setError('El nombre es obligatorio'); return }
+    setSaving(true)
+    setError('')
+    const { data, error } = await supabase.rpc('editar_usuario_admin', {
+      p_id: usuario.id, p_nombre: form.nombre.trim(), p_apellido: form.apellido.trim(),
+      p_email: form.email.trim(), p_dni: form.dni.trim(), p_puesto: form.puesto.trim(), p_rol: form.rol,
+    })
+    setSaving(false)
+    if (error) { setError(error.message); return }
+    if (!data?.ok) { setError(data?.msg ?? 'No se pudo guardar'); return }
+    onSaved()
+  }
+
+  return (
+    <Modal titulo={`Editar usuario — ${usuario.usuario}`} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Nombre *</label>
+            <input value={form.nombre} onChange={e => setFieldMayus('nombre', e.target.value)}
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" required />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Apellido</label>
+            <input value={form.apellido} onChange={e => setFieldMayus('apellido', e.target.value)}
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Email</label>
+            <input type="email" autoComplete="email" spellCheck={false} value={form.email} onChange={e => setField('email', e.target.value)}
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">DNI</label>
+            <input inputMode="numeric" spellCheck={false} value={form.dni} onChange={e => setField('dni', e.target.value)}
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Puesto</label>
+          <input value={form.puesto} onChange={e => setField('puesto', e.target.value)}
+            placeholder="ej: Jefe de taller"
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Rol</label>
+          <select value={form.rol} onChange={e => setField('rol', e.target.value)}
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm">
+            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            Cancelar
+          </button>
+          <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50">
+            {saving ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 function CambiarPasswordModal({ tecnico, onClose, onSaved }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -220,6 +303,7 @@ export default function Usuarios({ usuario }) {
   const [loading, setLoading] = useState(true)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [perfilAbierto, setPerfilAbierto] = useState(null)
+  const [editarAbierto, setEditarAbierto] = useState(null)
   const [passwordAbierto, setPasswordAbierto] = useState(null)
   const [error, setError] = useState('')
   const [mensajeExito, setMensajeExito] = useState('')
@@ -288,6 +372,9 @@ export default function Usuarios({ usuario }) {
                       <span className={u.activo ? 'text-gray-500 dark:text-gray-400' : 'text-red-600'}>{u.activo ? 'Activo' : 'Inactivo'}</span>
                     </td>
                     <td className="px-5 py-3 text-right whitespace-nowrap">
+                      <button onClick={() => setEditarAbierto(u)} className="text-blue-600 hover:underline text-xs mr-3">
+                        Editar
+                      </button>
                       {u.rol === 'tecnico' && (
                         <button onClick={() => setPerfilAbierto(u)} className="text-blue-600 hover:underline text-xs mr-3">
                           Perfil
@@ -314,6 +401,14 @@ export default function Usuarios({ usuario }) {
         <UsuarioModal
           onClose={() => setModalAbierto(false)}
           onSaved={() => { setModalAbierto(false); cargar() }}
+        />
+      )}
+
+      {editarAbierto && (
+        <EditarUsuarioModal
+          usuario={editarAbierto}
+          onClose={() => setEditarAbierto(null)}
+          onSaved={() => { setEditarAbierto(null); cargar() }}
         />
       )}
 

@@ -157,7 +157,7 @@ function CargarDatosCostosModal({ mes, onClose, onGuardado }) {
 
   // costo anual por unidad
   const [anioAnual, setAnioAnual] = useState(new Date().getFullYear())
-  const [unidadAnual, setUnidadAnual] = useState('')
+  const [unidadesAnual, setUnidadesAnual] = useState([])
   const [conceptoAnual, setConceptoAnual] = useState('Seguro')
   const [montoAnual, setMontoAnual] = useState('')
 
@@ -228,14 +228,17 @@ function CargarDatosCostosModal({ mes, onClose, onGuardado }) {
 
   async function guardarCostoAnual() {
     setError('')
-    if (!unidadAnual || !conceptoAnual.trim()) { setError('Faltan campos'); return }
-    const { data, error } = await supabase.rpc('guardar_costo_anual', {
-      p_id_unidad: unidadAnual, p_anio: Number(anioAnual), p_concepto: conceptoAnual.trim(), p_monto_anual: Number(montoAnual) || 0,
-    })
-    if (error) { setError(error.message); return }
-    if (!data?.ok) { setError(data?.msg ?? 'No se pudo guardar'); return }
+    if (unidadesAnual.length === 0 || !conceptoAnual.trim()) { setError('Faltan campos'); return }
+    // Una unidad por llamada — el RPC solo acepta una a la vez.
+    for (const idUnidad of unidadesAnual) {
+      const { data, error } = await supabase.rpc('guardar_costo_anual', {
+        p_id_unidad: idUnidad, p_anio: Number(anioAnual), p_concepto: conceptoAnual.trim(), p_monto_anual: Number(montoAnual) || 0,
+      })
+      if (error) { setError(error.message); return }
+      if (!data?.ok) { setError(data?.msg ?? 'No se pudo guardar'); return }
+    }
     setMontoAnual('')
-    setAviso('Costo anual guardado.')
+    setAviso(`Costo anual guardado en ${unidadesAnual.length} unidad(es).`)
     onGuardado()
   }
 
@@ -328,11 +331,9 @@ function CargarDatosCostosModal({ mes, onClose, onGuardado }) {
           <p className="text-xs text-gray-400">Se carga una vez por año, el sistema prorratea 1/12 cada mes solo.</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Unidad</label>
-              <select value={unidadAnual} onChange={e => setUnidadAnual(e.target.value)} className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900">
-                <option value="">Elegir…</option>
-                {unidades.map(u => <option key={u.id} value={u.id}>{u.patente_serie} — {u.descripcion}</option>)}
-              </select>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Unidad(es)</label>
+              <MultiSelectFiltro label="Unidad" opciones={unidades.map(u => u.id)} seleccionados={unidadesAnual} onChange={setUnidadesAnual}
+                etiquetas={Object.fromEntries(unidades.map(u => [u.id, `${u.patente_serie} — ${u.descripcion}`]))} soloEtiqueta />
             </div>
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Año</label>
