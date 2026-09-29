@@ -1,5 +1,3 @@
-import ExcelJS from 'exceljs'
-
 // Parsea el "Resumen de Flota" que exporta el sistema de GPS/telemetría.
 // No es una tabla simple: tiene varias filas de título (Empresa, Grupo,
 // Desde, Hasta) antes del encabezado real, por eso no se reutiliza
@@ -18,6 +16,7 @@ function horasDesdeFecha(valor) {
 }
 
 export async function parseResumenFlota(arrayBuffer) {
+  const { default: ExcelJS } = await import('exceljs')
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(arrayBuffer)
   const ws = wb.worksheets[0]

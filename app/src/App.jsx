@@ -1,31 +1,35 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { supabase } from './lib/supabase'
 import { getUsuarioActual } from './lib/auth'
 import Login from './pages/Login'
 import Sidebar, { PAGINAS_TECNICO, PAGINAS_CHOFER } from './components/Sidebar'
-import PanelEmpresas from './pages/PanelEmpresas'
-import Dashboard from './pages/Dashboard'
-import Unidades from './pages/Unidades'
-import ActivoDetalle from './pages/ActivoDetalle'
-import Componentes from './pages/Componentes'
-import Ot from './pages/Ot'
-import OtDetalle from './pages/OtDetalle'
-import Stock from './pages/Stock'
-import Herramientas from './pages/Herramientas'
-import Novedades from './pages/Novedades'
-import Combustible from './pages/Combustible'
-import Checklists from './pages/Checklists'
-import RutinasMantenimiento from './pages/RutinasMantenimiento'
-import Bitacora from './pages/Bitacora'
-import NotasPedido from './pages/NotasPedido'
-import Proveedores from './pages/Proveedores'
-import Secuencias from './pages/Secuencias'
-import Documentos from './pages/Documentos'
-import Reportes from './pages/Reportes'
-import Configuracion from './pages/Configuracion'
-import Usuarios from './pages/Usuarios'
 import Placeholder from './pages/Placeholder'
 import OfflineBanner from './components/OfflineBanner'
+
+// Carga diferida: cada página se descarga recién cuando se entra a ella,
+// en vez de bajar las 20 juntas al abrir la app (que es lo que pasaba
+// antes — de ahí el aviso de Vite de "chunks larger than 500 kB").
+const PanelEmpresas = lazy(() => import('./pages/PanelEmpresas'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Unidades = lazy(() => import('./pages/Unidades'))
+const ActivoDetalle = lazy(() => import('./pages/ActivoDetalle'))
+const Componentes = lazy(() => import('./pages/Componentes'))
+const Ot = lazy(() => import('./pages/Ot'))
+const OtDetalle = lazy(() => import('./pages/OtDetalle'))
+const Stock = lazy(() => import('./pages/Stock'))
+const Herramientas = lazy(() => import('./pages/Herramientas'))
+const Novedades = lazy(() => import('./pages/Novedades'))
+const Combustible = lazy(() => import('./pages/Combustible'))
+const Checklists = lazy(() => import('./pages/Checklists'))
+const RutinasMantenimiento = lazy(() => import('./pages/RutinasMantenimiento'))
+const Bitacora = lazy(() => import('./pages/Bitacora'))
+const NotasPedido = lazy(() => import('./pages/NotasPedido'))
+const Proveedores = lazy(() => import('./pages/Proveedores'))
+const Secuencias = lazy(() => import('./pages/Secuencias'))
+const Documentos = lazy(() => import('./pages/Documentos'))
+const Reportes = lazy(() => import('./pages/Reportes'))
+const Configuracion = lazy(() => import('./pages/Configuracion'))
+const Usuarios = lazy(() => import('./pages/Usuarios'))
 
 const TITULOS = {
   unidades: 'Activos',
@@ -149,7 +153,9 @@ export default function App() {
       <div className="flex flex-1 min-h-0">
         <Sidebar pagina={paginaEfectiva} setPagina={navegarA} usuario={usuario} abrirActivo={abrirFichaGlobal} />
         <div className="flex-1 min-w-0 overflow-y-auto">
-          {renderPagina()}
+          <Suspense fallback={<p className="p-6 text-sm text-gray-400">Cargando…</p>}>
+            {renderPagina()}
+          </Suspense>
         </div>
       </div>
     </div>

@@ -1,8 +1,10 @@
-import ExcelJS from 'exceljs'
-
 // Exporta a .xlsx real (no CSV) para que Excel muestre los filtros de
 // columna apenas se abre el archivo — un CSV no puede llevar eso adentro.
+// exceljs pesa ~1MB minificado; se importa recién acá adentro (no arriba
+// del archivo) para que las 12 páginas que exportan a Excel no lo bajen
+// todas de arranque, solo la primera vez que alguien aprieta "Excel".
 export async function exportarXlsx(nombreArchivo, filas, columnas) {
+  const { default: ExcelJS } = await import('exceljs')
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Datos')
 

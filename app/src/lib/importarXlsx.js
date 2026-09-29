@@ -1,9 +1,9 @@
-import ExcelJS from 'exceljs'
-
 // Contraparte de exportarXlsx.js — lee la primera hoja y devuelve filas
 // como objetos usando la primera fila como encabezado (mismo formato de
 // salida que parseCsv, para que el código que las consume no distinga).
+// exceljs se importa recién acá adentro, ver el comentario en exportarXlsx.js.
 export async function parseXlsx(arrayBuffer) {
+  const { default: ExcelJS } = await import('exceljs')
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(arrayBuffer)
   const ws = wb.worksheets[0]

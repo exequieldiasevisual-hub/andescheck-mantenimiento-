@@ -1,5 +1,3 @@
-import ExcelJS from 'exceljs'
-
 // Parsea el Excel de remitos que exporta el sistema de la estación de
 // servicio. No es una tabla simple: tiene 2 filas de título antes del
 // encabezado real, y una fila "Total Remito" al final — por eso no se
@@ -28,6 +26,7 @@ function fechaCelda(row, col) {
 }
 
 export async function parseRemitoCombustible(arrayBuffer) {
+  const { default: ExcelJS } = await import('exceljs')
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(arrayBuffer)
   const ws = wb.worksheets[0]
