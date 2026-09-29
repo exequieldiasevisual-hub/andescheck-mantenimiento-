@@ -65,8 +65,11 @@ export default function PlantillaChecklistModal({ plantilla, empresaId, onClose,
 
     if (errPlant) { setSaving(false); setError(errPlant.message); return }
 
-    // Reemplazo total de ítems — más simple que diffear.
-    await supabase.from('checklist_items').delete().eq('id_plantilla', plant.id)
+    // Reemplazo total de ítems — más simple que diffear. Si el borrado
+    // falla, hay que frenar acá: seguir al insert duplicaría todo lo
+    // que no se llegó a borrar.
+    const { error: errBorrado } = await supabase.from('checklist_items').delete().eq('id_plantilla', plant.id)
+    if (errBorrado) { setSaving(false); setError(errBorrado.message); return }
     const { error: errItems } = await supabase.from('checklist_items').insert(
       itemsValidos.map((i, idx) => ({
         id_plantilla: plant.id, orden: idx + 1, pregunta: i.pregunta.trim(), tipo_respuesta: i.tipo_respuesta,
