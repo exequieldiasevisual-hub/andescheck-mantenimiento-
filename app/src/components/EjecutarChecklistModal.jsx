@@ -8,6 +8,8 @@ import Modal from './Modal'
 import ConfirmModal from './ConfirmModal'
 import BuscadorUnidad from './BuscadorUnidad'
 
+const MAX_FOTOS = 10
+
 function capturarUbicacion() {
   return new Promise(resolve => {
     if (!navigator.geolocation) { resolve(null); return }
@@ -45,6 +47,8 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
   // Foto obligatoria: solo cuando la respuesta de un ítem configurado con "foto obligatoria" genera novedad.
   const requiereFoto = item => item.foto_obligatoria && item.dispara_novedad && item.tipo_respuesta !== 'fecha'
     && item.valor_disparador && respuestas[item.id]?.trim().toLowerCase() === item.valor_disparador.trim().toLowerCase()
+  // Suma las fotos elegidas (cámara o galería) a las que ya había, sin pasar el máximo.
+  function sumarFotos(files) { setFotos(fs => [...fs, ...Array.from(files || [])].slice(0, MAX_FOTOS)) }
   function elegirPlantilla(id) { setIdPlantilla(id); setRespuestas({}); setFotosItem({}) }
   function setRespuesta(idItem, valor) { setRespuestas(r => ({ ...r, [idItem]: valor })) }
 
@@ -233,11 +237,28 @@ export default function EjecutarChecklistModal({ unidades, plantillas, itemsPorP
         )}
 
         <div>
-          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Fotos</label>
-          <label className="flex items-center gap-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 w-fit">
-            📷 {fotos.length > 0 ? `${fotos.length} foto(s) seleccionada(s)` : 'Adjuntar fotos (opcional)'}
-            <input type="file" accept="image/*" capture="environment" multiple onChange={e => setFotos(Array.from(e.target.files))} className="hidden" />
-          </label>
+          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Fotos (opcional) · {fotos.length}/{MAX_FOTOS}</label>
+          <div className="flex flex-wrap items-center gap-2">
+            {fotos.map((f, k) => (
+              <div key={k} className="relative">
+                <img src={URL.createObjectURL(f)} alt="" className="w-14 h-14 object-cover rounded-md border border-gray-200 dark:border-gray-700" />
+                <button type="button" onClick={() => setFotos(fs => fs.filter((_, j) => j !== k))}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white text-xs leading-none" aria-label="Quitar foto">×</button>
+              </div>
+            ))}
+            {fotos.length < MAX_FOTOS && (
+              <>
+                <label className="flex items-center gap-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400">
+                  📷 Sacar foto
+                  <input type="file" accept="image/*" capture="environment" onChange={e => { sumarFotos(e.target.files); e.target.value = '' }} className="hidden" />
+                </label>
+                <label className="flex items-center gap-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400">
+                  🖼️ Elegir del dispositivo
+                  <input type="file" accept="image/*" multiple onChange={e => { sumarFotos(e.target.files); e.target.value = '' }} className="hidden" />
+                </label>
+              </>
+            )}
+          </div>
         </div>
 
         <div>
